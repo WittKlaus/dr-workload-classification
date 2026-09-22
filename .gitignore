@@ -1,0 +1,18 @@
+# OS / editor noise
+Thumbs.db
+desktop.ini
+.DS_Store
+*.swp
+
+# Office lock files
+~$*.xlsx
+~$*.docx
+
+# Local tooling
+.claude/
+node_modules/
+*.log
+
+# Exports produced while testing the tool
+DR_Workload_Classification_Tool_surveyed_*.xlsx
+DR_Assessment_Progress_20*.json

@@ -1,0 +1,81 @@
+Systemname;Kategorie;Betriebssystem;Standort;Größe (GB);Team;Verantwortlicher;E-Mail;Notiz
+WEB-PRD-001;Applikation;RHEL 9;Hamburg;831;Team Infrastruktur;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+APP-PRD-002;Applikation;Windows Server 2022;Hamburg;1189;Team Applikationen;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+FILE-PRD-003;Applikation;Ubuntu 22.04;Frankfurt;479;Team Infrastruktur;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+EXCH-DEV-004;Applikation;Ubuntu 22.04;Frankfurt;489;Team Applikationen;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+SAP-PRD-005;Applikation;RHEL 9;Hamburg;139;Team Infrastruktur;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+CRM-PRD-006;Applikation;RHEL 9;München;476;Team Applikationen;François Petit;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+DC-PRD-007;Applikation;RHEL 9;München;795;Team Datenbanken;Käthe Vogel;dl-it@kunde-beispiel.de;
+DNS-DEV-008;Applikation;Windows Server 2022;Frankfurt;544;Team Datenbanken;Käthe Vogel;dl-it@kunde-beispiel.de;
+PRINT-PRD-009;Applikation;RHEL 9;Frankfurt;1068;Team Applikationen;François Petit;dl-it@kunde-beispiel.de;
+CTX-PRD-010;Applikation;Windows Server 2022;München;784;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+MON-PRD-011;Applikation;Ubuntu 22.04;Frankfurt;875;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+ORA-DEV-012;Datenbank;RHEL 9;Frankfurt;968;Team Applikationen;Jürgen Schäfer;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+MQ-PRD-013;Applikation;Windows Server 2022;Hamburg;890;Team Datenbanken;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+LIC-PRD-014;Applikation;Ubuntu 22.04;Frankfurt;405;Team Infrastruktur;Käthe Vogel;dl-it@kunde-beispiel.de;
+SQL-PRD-015;Datenbank;Windows Server 2022;Frankfurt;1033;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+WEB-DEV-016;Applikation;Ubuntu 22.04;Hamburg;1051;Team Applikationen;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+APP-PRD-017;Applikation;Windows Server 2022;Hamburg;348;Team Infrastruktur;Käthe Vogel;dl-it@kunde-beispiel.de;
+FILE-PRD-018;Applikation;Ubuntu 22.04;Hamburg;290;Team Applikationen;François Petit;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+EXCH-PRD-019;Applikation;Windows Server 2022;München;478;Team Infrastruktur;Käthe Vogel;dl-it@kunde-beispiel.de;
+SAP-DEV-020;Applikation;RHEL 9;Frankfurt;679;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+CRM-PRD-021;Applikation;Ubuntu 22.04;München;611;Team Applikationen;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+DC-PRD-022;Applikation;Windows Server 2022;Frankfurt;804;Team Datenbanken;François Petit;dl-it@kunde-beispiel.de;
+DNS-PRD-023;Applikation;Ubuntu 22.04;Hamburg;941;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+PRINT-DEV-024;Applikation;Ubuntu 22.04;Frankfurt;1152;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+CTX-PRD-025;Applikation;RHEL 9;Frankfurt;88;Team Infrastruktur;Käthe Vogel;dl-it@kunde-beispiel.de;
+MON-PRD-026;Applikation;Windows Server 2022;München;326;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+ORA-PRD-027;Datenbank;RHEL 9;Hamburg;1141;Team Applikationen;François Petit;dl-it@kunde-beispiel.de;
+MQ-DEV-028;Applikation;RHEL 9;Frankfurt;196;Team Infrastruktur;Käthe Vogel;dl-it@kunde-beispiel.de;
+LIC-PRD-029;Applikation;RHEL 9;Frankfurt;280;Team Applikationen;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+SQL-PRD-030;Datenbank;Ubuntu 22.04;Frankfurt;209;Team Datenbanken;Jürgen Schäfer;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+WEB-PRD-031;Applikation;Ubuntu 22.04;Hamburg;1128;Team Infrastruktur;François Petit;dl-it@kunde-beispiel.de;
+APP-DEV-032;Applikation;RHEL 9;München;1120;Team Applikationen;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+FILE-PRD-033;Applikation;Ubuntu 22.04;Frankfurt;1151;Team Datenbanken;François Petit;dl-it@kunde-beispiel.de;
+EXCH-PRD-034;Applikation;Windows Server 2022;München;360;Team Datenbanken;Käthe Vogel;dl-it@kunde-beispiel.de;
+SAP-PRD-035;Applikation;RHEL 9;München;727;Team Infrastruktur;François Petit;dl-it@kunde-beispiel.de;
+CRM-DEV-036;Applikation;Windows Server 2022;München;229;Team Infrastruktur;François Petit;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+DC-PRD-037;Applikation;RHEL 9;Frankfurt;396;Team Applikationen;François Petit;dl-it@kunde-beispiel.de;
+DNS-PRD-038;Applikation;Ubuntu 22.04;München;372;Team Datenbanken;Käthe Vogel;dl-it@kunde-beispiel.de;
+PRINT-PRD-039;Applikation;RHEL 9;Frankfurt;272;Team Datenbanken;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+CTX-DEV-040;Applikation;Windows Server 2022;Hamburg;538;Team Infrastruktur;François Petit;dl-it@kunde-beispiel.de;
+MON-PRD-041;Applikation;RHEL 9;Hamburg;907;Team Datenbanken;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+ORA-PRD-042;Datenbank;Windows Server 2022;München;732;Team Infrastruktur;François Petit;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+MQ-PRD-043;Applikation;RHEL 9;Frankfurt;772;Team Applikationen;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+LIC-DEV-044;Applikation;RHEL 9;Hamburg;117;Team Datenbanken;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+SQL-PRD-045;Datenbank;Ubuntu 22.04;Hamburg;685;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+WEB-PRD-046;Applikation;Windows Server 2022;Frankfurt;294;Team Infrastruktur;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+APP-PRD-047;Applikation;RHEL 9;Frankfurt;451;Team Datenbanken;Käthe Vogel;dl-it@kunde-beispiel.de;
+FILE-DEV-048;Applikation;RHEL 9;Hamburg;609;Team Datenbanken;Käthe Vogel;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+EXCH-PRD-049;Applikation;Ubuntu 22.04;Hamburg;1092;Team Applikationen;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+SAP-PRD-050;Applikation;Windows Server 2022;München;197;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+CRM-PRD-051;Applikation;RHEL 9;Frankfurt;630;Team Infrastruktur;François Petit;dl-it@kunde-beispiel.de;
+DC-DEV-052;Applikation;Windows Server 2022;München;251;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+DNS-PRD-053;Applikation;Windows Server 2022;München;329;Team Datenbanken;Käthe Vogel;dl-it@kunde-beispiel.de;
+PRINT-PRD-054;Applikation;RHEL 9;Hamburg;935;Team Datenbanken;François Petit;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+CTX-PRD-055;Applikation;Windows Server 2022;Frankfurt;1159;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+MON-DEV-056;Applikation;Windows Server 2022;Frankfurt;616;Team Infrastruktur;Käthe Vogel;dl-it@kunde-beispiel.de;
+ORA-PRD-057;Datenbank;Windows Server 2022;München;704;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+MQ-PRD-058;Applikation;RHEL 9;München;1104;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+LIC-PRD-059;Applikation;RHEL 9;München;117;Team Datenbanken;Käthe Vogel;dl-it@kunde-beispiel.de;
+SQL-DEV-060;Datenbank;Windows Server 2022;Frankfurt;1115;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+WEB-PRD-061;Applikation;Ubuntu 22.04;München;583;Team Datenbanken;Käthe Vogel;dl-it@kunde-beispiel.de;
+APP-PRD-062;Applikation;Ubuntu 22.04;Hamburg;965;Team Applikationen;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+FILE-PRD-063;Applikation;Ubuntu 22.04;München;1117;Team Datenbanken;François Petit;dl-it@kunde-beispiel.de;
+EXCH-DEV-064;Applikation;Windows Server 2022;Frankfurt;781;Team Infrastruktur;François Petit;dl-it@kunde-beispiel.de;
+SAP-PRD-065;Applikation;Ubuntu 22.04;Hamburg;366;Team Datenbanken;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+CRM-PRD-066;Applikation;Windows Server 2022;Frankfurt;109;Team Infrastruktur;François Petit;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+DC-PRD-067;Applikation;Ubuntu 22.04;München;962;Team Infrastruktur;Käthe Vogel;dl-it@kunde-beispiel.de;
+DNS-DEV-068;Applikation;Windows Server 2022;Hamburg;860;Team Applikationen;François Petit;dl-it@kunde-beispiel.de;
+PRINT-PRD-069;Applikation;RHEL 9;Hamburg;576;Team Applikationen;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+CTX-PRD-070;Applikation;Windows Server 2022;München;459;Team Infrastruktur;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+MON-PRD-071;Applikation;RHEL 9;Frankfurt;619;Team Datenbanken;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+ORA-DEV-072;Datenbank;Ubuntu 22.04;München;580;Team Infrastruktur;Jürgen Schäfer;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+MQ-PRD-073;Applikation;Windows Server 2022;München;454;Team Infrastruktur;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+LIC-PRD-074;Applikation;RHEL 9;Frankfurt;1052;Team Datenbanken;François Petit;dl-it@kunde-beispiel.de;
+SQL-PRD-075;Datenbank;Ubuntu 22.04;Frankfurt;588;Team Applikationen;Käthe Vogel;dl-it@kunde-beispiel.de;
+WEB-DEV-076;Applikation;Windows Server 2022;München;263;Team Infrastruktur;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+APP-PRD-077;Applikation;Ubuntu 22.04;Frankfurt;886;Team Infrastruktur;Jürgen Schäfer;dl-it@kunde-beispiel.de;
+FILE-PRD-078;Applikation;RHEL 9;Hamburg;556;Team Infrastruktur;François Petit;dl-it@kunde-beispiel.de;enthält personenbezogene Daten
+EXCH-PRD-079;Applikation;Ubuntu 22.04;Frankfurt;877;Team Datenbanken;François Petit;dl-it@kunde-beispiel.de;
+SAP-DEV-080;Applikation;RHEL 9;Frankfurt;661;Team Applikationen;François Petit;dl-it@kunde-beispiel.de;

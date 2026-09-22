@@ -1,0 +1,16 @@
+# Text files: normalize to LF in the repository
+*.html text eol=lf
+*.md   text eol=lf
+*.json text eol=lf
+*.js   text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# CSV examples carry deliberate encodings (UTF-8 with BOM, cp1252) and line endings - keep bytes as they are
+*.csv -text
+
+# Binary
+*.xlsx binary
+*.png  binary
+*.gif  binary
+*.skill binary
