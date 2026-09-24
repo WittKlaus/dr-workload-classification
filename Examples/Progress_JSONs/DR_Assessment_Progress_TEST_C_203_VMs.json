@@ -4476,37 +4476,37 @@
   },
   "classDefs": {
     "Tier 0 – Foundation": {
-      "rpo": "≈ 0 (kontinuierliche Replikation)",
-      "rto": "< 30 Min",
-      "config": "CDP / kontinuierliche Replikation, Immutability lokal + Cloud, höchste VRO-Runbook-Priorität",
+      "rpo": "≈ 0 (continuous replication)",
+      "rto": "< 30 min",
+      "config": "CDP / continuous replication, immutability on-prem + cloud, highest VRO runbook priority",
       "rpoH": 0,
       "rtoH": 0.5
     },
     "Tier 1 – Platinum": {
-      "rpo": "< 15 Min",
-      "rto": "< 1 Std.",
-      "config": "Near-CDP-Replikation + Immutable Backup, automatisiertes VRO Orchestration Plan mit Failover",
+      "rpo": "< 15 min",
+      "rto": "< 1 h",
+      "config": "Near-CDP replication + immutable backup, automated VRO orchestration plan with failover",
       "rpoH": 0.25,
       "rtoH": 1
     },
     "Tier 2 – Gold": {
-      "rpo": "< 1 Std.",
-      "rto": "< 4 Std.",
-      "config": "Mehrfach tägliches Backup + optionale Replikation, teilautomatisiertes VRO Runbook",
+      "rpo": "< 1 h",
+      "rto": "< 4 h",
+      "config": "Multiple daily backups + optional replication, semi-automated VRO runbook",
       "rpoH": 1,
       "rtoH": 4
     },
     "Tier 3 – Silver": {
-      "rpo": "< 4 Std.",
-      "rto": "< 24 Std.",
-      "config": "Tägliches Backup, Immutability optional, standardisiertes VRO Runbook",
+      "rpo": "< 4 h",
+      "rto": "< 24 h",
+      "config": "Daily backup, immutability optional, standardized VRO runbook",
       "rpoH": 4,
       "rtoH": 24
     },
     "Tier 4 – Bronze": {
-      "rpo": "< 24 Std.",
-      "rto": "< 72 Std. / Best Effort",
-      "config": "Standard-Backup-Policy (täglich/wöchentlich), manuelle Wiederherstellung akzeptabel",
+      "rpo": "< 24 h",
+      "rto": "< 72 h / best effort",
+      "config": "Standard backup policy (daily/weekly), manual recovery acceptable",
       "rpoH": 24,
       "rtoH": 72
     }

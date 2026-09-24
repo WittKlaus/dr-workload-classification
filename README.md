@@ -11,7 +11,7 @@
 > not validated by Veeam QA and not covered by Veeam Support. Results are a structured basis for
 > discussion and are validated together with the customer — without warranty.
 
-<!-- TODO before publishing: add 2–3 screenshots (tab ①, dependency graph, runbook groups) -->
+![Dependency network with a weakest-link finding](docs/screenshots/network.png)
 
 ## Why
 
@@ -32,6 +32,8 @@ To explore without importing, load `Examples/Progress_JSONs/DR_Assessment_Progre
 203 pre-classified workloads with dependencies, ready for the runbook tab.
 
 ## What it does
+
+![Import step: column mapping and the three import filters](docs/screenshots/import.png)
 
 **Tab ① New assessment.** Import an inventory — validated sources are RVTools (`vInfo`) and the
 Veeam ONE report *VMs Configuration* (vSphere and Hyper-V, exported as Excel); CMDB/ServiceNow lists
@@ -55,14 +57,20 @@ rule-based **prequalification wizard** proposes ratings from naming patterns (SQ
 Exchange, AD/DNS, file, print, VDI …) — proposals only, applied after confirmation and marked until
 validated.
 
+![Assessment table with filters, column chooser and bulk edit](docs/screenshots/classify.png)
+
 **Tab ② View classification.** KPIs, distribution chart, sortable register and the dependency
 network with findings: weakest-link RTO risks (a system depends on something in a lower class),
 circular dependencies, RPO/RTO gaps. Print view for a PDF hand-out.
+
+![KPIs and distribution by protection class](docs/screenshots/overview.png)
 
 **Tab ③ Runbook planning (VRO).** Dependency-connected groups as orchestration-plan candidates with
 a topological start order, editable group names, a service owner per group, a foundation block that
 always starts first, and warnings when protection classes are mixed inside a group. Includes field
 guidance on how foundation systems are handled in a DR event versus in a DataLab test.
+
+![Runbook groups with foundation block and mixed-class warning](docs/screenshots/runbooks.png)
 
 **Export.** A formatted Excel workbook (Instructions, Class-Matrix, Workload-Register, Dashboard,
 Runbook-Plan) that round-trips back into the tool, plus a progress file (JSON) for resuming later.
@@ -102,6 +110,7 @@ you load are treated as untrusted input and type-checked. Details in [SECURITY.m
 | `Examples/Manual_Workbook/` | Filled examples of the manual-entry workbook |
 | `Outputs/` | The customer manual-entry workbook (for engagements without RVTools) and the export template |
 | `CHANGELOG.md` | Release history; the current release is also shown in the tool's About dialog |
+| `docs/screenshots/` | The screenshots used in this README |
 
 ## Limits
 
@@ -109,6 +118,16 @@ Tested with synthetic inventories up to 5,000 workloads. Tables are paginated; t
 protects itself above 1,500 workloads (unconnected nodes are dropped) and switches to a static layout
 above 600 nodes (a selector forces animated or static). For very large environments, split the
 survey into waves, for example per site or cluster.
+
+Dark mode and a colorblind-friendly tier palette are available from the ⚙ menu.
+
+<details>
+<summary>Dark mode screenshots</summary>
+
+![Assessment table in dark mode](docs/screenshots/classify-dark.png)
+![Dependency network in dark mode](docs/screenshots/network-dark.png)
+
+</details>
 
 ## Contributing
 

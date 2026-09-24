@@ -5,6 +5,8 @@ All notable changes to this project are documented here.
 ---
 
 ## [Unreleased]
+- README: screenshots of the import step, assessment table, dependency network, overview and runbook
+  groups (light and dark mode); example TEST_C now carries English class-definition texts
 - Backlog (next): bulk-edit "Depends on" for a selection, editable Excel re-import into tab ①,
   recovery-plan type per runbook group, tags/custom attributes and vNetwork as inventory signals
 
