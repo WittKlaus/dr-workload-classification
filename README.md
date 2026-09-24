@@ -11,7 +11,7 @@
 > not validated by Veeam QA and not covered by Veeam Support. Results are a structured basis for
 > discussion and are validated together with the customer — without warranty.
 
-![Dependency network with a weakest-link finding](docs/screenshots/network.png)
+![Dependency network in dark mode with a weakest-link finding](docs/screenshots/network-dark.png)
 
 ## Why
 
@@ -62,6 +62,8 @@ validated.
 **Tab ② View classification.** KPIs, distribution chart, sortable register and the dependency
 network with findings: weakest-link RTO risks (a system depends on something in a lower class),
 circular dependencies, RPO/RTO gaps. Print view for a PDF hand-out.
+
+![Dependency network with findings](docs/screenshots/network.png)
 
 ![KPIs and distribution by protection class](docs/screenshots/overview.png)
 
@@ -122,10 +124,9 @@ survey into waves, for example per site or cluster.
 Dark mode and a colorblind-friendly tier palette are available from the ⚙ menu.
 
 <details>
-<summary>Dark mode screenshots</summary>
+<summary>Dark mode: assessment table</summary>
 
 ![Assessment table in dark mode](docs/screenshots/classify-dark.png)
-![Dependency network in dark mode](docs/screenshots/network-dark.png)
 
 </details>
 
