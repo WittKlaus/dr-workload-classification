@@ -81,7 +81,7 @@ t.sheetStubs=true}if(t.type=="array"){t.type="binary";var a=xk(e,t);t.type="arra
   --shadow-card: 0px 6px 12px 0px rgba(0,69,80,.07), 0px 3px 6px 0px rgba(3,69,80,.09), 0px 8px 20px 0px rgba(0,69,80,.05);
   --surface:#FFFFFF;
   /* Graph colors as variables so that dark mode also reaches SVG attributes set from JS */
-  --graph-link:#D7D7D7; --graph-link-implicit:#C9C9C9; --graph-arrow:#ADACAF; --node-stroke:#FFFFFF;
+  --graph-link:#D7D7D7; --graph-link-implicit:#C9C9C9; --graph-arrow:#8C8C92; --graph-hl:#232323; --graph-weak:#D55E00; --node-stroke:#FFFFFF;
   --chart-text:#505861; --chart-grid:#E4E4E4;
 }
 /* ---- Dark Mode: Variablen-Overrides auf <html class="theme-dark"> ---- */
@@ -90,7 +90,7 @@ html.theme-dark {
   --vm-grey-300:#4B4B52; --vm-grey-200:#37373D; --vm-grey-100:#1C1C20; --vm-white:#26262C;
   --surface:#26262C;
   --shadow-card: 0px 6px 14px 0px rgba(0,0,0,.45);
-  --graph-link:#4E4E56; --graph-link-implicit:#44444C; --graph-arrow:#7A7A82; --node-stroke:#1C1C20;
+  --graph-link:#4E4E56; --graph-link-implicit:#44444C; --graph-arrow:#A2A2AA; --graph-hl:#E6E6EA; --graph-weak:#F08A45; --node-stroke:#1C1C20;
   --chart-text:#A9B1BA; --chart-grid:#3B3B42;
 }
 html.theme-dark .topbar { background:#0E7A3C; }
@@ -213,6 +213,10 @@ html,body { margin:0; padding:0; font-family:var(--font-sans); color:var(--vm-in
   display:inline-flex; align-items:center; gap:6px; font:600 12px/16px var(--font-sans);
   padding:3px 9px; border-radius:99999px; border:1px solid var(--vm-grey-200); background:var(--vm-grey-100);
 }
+/* Validation coverage line: badges of sources validated in this session are buttons (block 14) */
+button.badge--link { cursor:pointer; color:inherit; border-color:var(--vm-grey-300); }
+button.badge--link:hover { background:var(--vm-grey-200); }
+button.badge--active { border-color:var(--veeam-blue-royal); box-shadow:0 0 0 2px rgba(9,95,196,.15); }
 .badge-dot { width:8px; height:8px; border-radius:99999px; display:inline-block; }
 .badge-manual { border-color:var(--veeam-purple); color:var(--veeam-purple); background:rgba(178,59,216,.08); }
 /* Auto proposal: stays visible until "Validated by customer" is set (provenance transparency) */
@@ -266,6 +270,10 @@ table.dr-table td { padding:8px 10px; border-bottom:1px solid var(--vm-grey-200)
 #graph-svg { width:100%; height:620px; background:var(--surface); border-radius:var(--radius-md); cursor:grab; }
 .node-label { font:500 10px var(--font-sans); fill:var(--vm-ink-2); pointer-events:none; opacity:0; transition:opacity .12s; }
 .node-label.always { opacity:1; }
+/* Hover direction highlight in the network (block 7): solid = depends on, dashed = required by, rest fades */
+#graph-svg line.hl-out { stroke:var(--graph-hl); stroke-width:2.4; stroke-dasharray:none; marker-end:url(#arrow-hl); }
+#graph-svg line.hl-in { stroke:var(--graph-hl); stroke-width:2.4; stroke-dasharray:6,4; marker-end:url(#arrow-hl); }
+#graph-svg .hl-dim { opacity:.15; }
 .graph-toolbar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:12px; }
 .graph-search {
   font:400 13px/18px var(--font-sans); padding:7px 11px; border:1.5px solid var(--vm-grey-300);
@@ -447,7 +455,6 @@ details.options-panel[open] summary::before { content:"▼ "; }
     <button id="btn-opts-menu" style="font:700 12px/16px var(--font-sans); padding:4px 12px; border-radius:99999px; background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.5); color:#fff; cursor:pointer;" title="Optionen">⚙</button>
     <div class="opts-menu" id="opts-menu">
       <button id="opt-dark">🌙 <span>Dark Mode</span><span class="opts-state" id="opt-dark-state"></span></button>
-      <button id="opt-colorblind" title="Farbfehlsicht-freundliche Tier-Farbpalette (Okabe-Ito)">👁 <span>Farbfehlsicht-Modus</span><span class="opts-state" id="opt-cb-state"></span></button>
       <div class="opts-sep"></div>
       <button id="opt-feedback">⚑ <span>Feedback / Problem melden (GitHub)</span></button>
       <button id="opt-welcome">👋 <span>„Bevor es losgeht“ anzeigen</span></button>
@@ -754,6 +761,7 @@ details.options-panel[open] summary::before { content:"▼ "; }
           <label>Foundational <select id="bulk-foundational"><option value="">– nicht ändern –</option><option value="Ja">Ja setzen</option><option value="Nein">Nein setzen</option></select></label>
           <label>Out of Scope <select id="bulk-outofscope"><option value="">– nicht ändern –</option><option value="Ja">Ja setzen</option><option value="Nein">Nein setzen</option></select></label>
           <label>Override <select id="bulk-override"><option value="">– nicht ändern –</option></select></label>
+          <label>Abhängig von <select id="bulk-deps-mode"><option value="add">hinzufügen</option><option value="replace">ersetzen</option><option value="remove">entfernen</option></select><input type="text" id="bulk-deps" class="deps-input" list="workload-names-datalist" placeholder="– nicht ändern –" title="Namen oder IDs, kommagetrennt — IDs werden beim Verlassen des Felds zu Namen aufgelöst" style="width:210px;"></label>
           <label>Team/Owner <input type="text" id="bulk-owner" placeholder="– nicht ändern –" style="width:130px;"></label>
           <label>Responsible <input type="text" id="bulk-responsible" placeholder="– nicht ändern –" style="width:130px;"></label>
           <label>E-Mail <input type="text" id="bulk-email" placeholder="– nicht ändern –" style="width:150px;"></label>
@@ -1035,7 +1043,7 @@ details.options-panel[open] summary::before { content:"▼ "; }
 // Public version label (SemVer, beta phase = 0.x). Embedded in the status bar, About, progress JSON
 // and Excel export, so feedback always states which build is affected. Feature rounds bump the middle
 // number (0.10.0), pure fixes the last one.
-const TOOL_VERSION = 'v0.15.0-beta';
+const TOOL_VERSION = 'v0.16.0-beta';
 // Public repository (v0.14.1): source of releases, issues and the feedback channel. Links only, never data retrieval.
 const REPO_URL = 'https://github.com/WittKlaus/dr-workload-classification';
 // Release notes inside the tool (v0.13.0): key points per version only, newest entry first.
@@ -1044,6 +1052,13 @@ const REPO_URL = 'https://github.com/WittKlaus/dr-workload-classification';
 // & history") and in the welcome modal (newest entry only).
 const CHANGELOG = [
   { v: TOOL_VERSION, date: '2026-09-28', notes: [ // newest entry = current version (the literal lives only in TOOL_VERSION)
+    "One tier palette for everyone: the Okabe-Ito colours (formerly the colorblind option) are now the only palette, in light and dark mode — Foundation and Silver are no longer confusable, the colorblind switch is gone; weaker-dependency edges in the network are vermilion",
+    "Bulk edit: \"Depends on\" can be set for all selected rows — add, replace or remove names; IDs are resolved to names exactly like in the table, unresolvable entries stop the action before anything changes",
+    "Dependency network: arrowheads are larger, darker and end at the node's edge, so the direction (arrow = depends on) is readable; hovering a workload highlights what it depends on (solid) and what requires it (dashed) and fades the rest",
+    "Validation: every source file validated in this session stays available — click its badge in the coverage line to see its result against the current list (always recomputed, never cached); a \"Re-check\" button re-runs all of them after edits",
+    "Validation: the coverage marks (✅/⚠) are recomputed for all validated sources on every run, so a deletion after a green check shows up immediately; a mark reflects file deviations only (missing / extra / field values), the internal consistency check is reported separately"
+  ]},
+  { v: 'v0.15.0-beta', date: '2026-09-28', notes: [
     "Validation rebuilt: the source file is read through the same pipeline as the import (same sheet/header detection, same filters), so excluded rows are reported as skipped instead of missing",
     "Validation is source-aware: a file is compared only against the workloads imported from it; other sources are listed as coverage, not as extras; several files can be validated one after another",
     "Deleted workloads are remembered (name, source, time) and reported as deliberately deleted instead of missing; undo or re-import clears the marker",
@@ -1119,21 +1134,18 @@ function debounce(fn, ms) {
 // Reads a CSS variable, so theme switches also reach SVG/canvas colors set from JS
 function cssVar(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
 
-// Two palettes: default (close to the Veeam colors) and colorblind-friendly (Okabe-Ito), switchable in
-// the options menu. tierColor() is the single color funnel, so swapping the map + re-render is enough.
-function defaultTierColors(colorblind) {
-  return colorblind ? {
+// ONE palette for everyone (v0.16.0): Okabe-Ito, designed for pairwise distinguishability under the common
+// forms of colour-vision deficiency. Foundation stays near-black (no second dark grey exists any more, so it
+// cannot be confused with Silver); dark mode lightens every colour via DARK_TIER_ADJUST. The former
+// colorblind switch is gone — the parameter is kept only so that old call sites keep working.
+// tierColor() is the single colour funnel; the Excel template carries no tier colours of its own.
+function defaultTierColors(_unused) {
+  return {
     "Tier 0 – Foundation": "#232323",
     "Tier 1 – Platinum": "#CC79A7",
     "Tier 2 – Gold": "#E69F00",
     "Tier 3 – Silver": "#009E73",
     "Tier 4 – Bronze": "#0072B2"
-  } : {
-    "Tier 0 – Foundation": "#232323",
-    "Tier 1 – Platinum": "#8E71F4",
-    "Tier 2 – Gold": "#B25800",
-    "Tier 3 – Silver": "#505861",
-    "Tier 4 – Bronze": "#095FC4"
   };
 }
 let TIER_COLORS = defaultTierColors(false);
@@ -1151,8 +1163,8 @@ const OUT_OF_SCOPE_CLASS = "Out of Scope – kein Backup";
 const OUT_OF_SCOPE_COLOR = "#8A8A8A";
 // Dark palette colors would vanish on a dark background in dark mode: the lightening pairs
 const DARK_TIER_ADJUST = {
-  "#232323": "#DADADF", "#505861": "#9AA3AC", "#B25800": "#E08A33", "#095FC4": "#5B9BE6",
-  "#0072B2": "#4D9FDB", "#009E73": "#2BC495", "#8A8A8A": "#A5A5AA"
+  "#232323": "#DADADF", "#CC79A7": "#E3A3CC", "#E69F00": "#F2B84A", "#009E73": "#2BC495", "#0072B2": "#4D9FDB",
+  "#8A8A8A": "#A5A5AA"
 };
 function tierColor(cls) {
   const c = TIER_COLORS[cls] || OUT_OF_SCOPE_COLOR;
@@ -1724,7 +1736,8 @@ function renderRecommendations(items, findings) {
 // ------------------------------------------------------------------------------------------------
 // Depends : Blocks 4–6, D3.
 // Provides: renderGraph(items, findings) — circuit breaker above 1,500 workloads, foundation hub aggregation,
-//           static layout above 600 nodes, layout selector (graphAnimateMode), filters and chips
+//           static layout above 600 nodes, layout selector (graphAnimateMode), filters and chips,
+//           v0.16.0: edge endpoints at the circle edge + three arrow markers, hover direction highlight (hl-out/hl-in/hl-dim)
 // Note    : _activeGraphSim must be stopped before every rebuild (memory).
 // ================================================================================================
 // Handle to the currently running simulation: on every rebuild (tab switch, language switch,
@@ -1826,10 +1839,19 @@ function renderGraph(items, findings) {
   });
   svg.call(zoomBehavior);
 
-  svg.append('defs').append('marker')
-    .attr('id', 'arrow').attr('viewBox', '0 -5 10 10').attr('refX', 18).attr('refY', 0)
-    .attr('markerWidth', 6).attr('markerHeight', 6).attr('orient', 'auto')
-    .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', cssVar('--graph-arrow') || '#ADACAF');
+  // v0.16.0: three markers (normal / weaker-dependency / hover highlight); the line ends at the node's edge
+  // (drawPositions), so refX puts the tip exactly there for every node size.
+  const defs = svg.append('defs');
+  [['arrow', cssVar('--graph-arrow') || '#8C8C92'], ['arrow-weak', cssVar('--graph-weak') || '#D55E00'], ['arrow-hl', cssVar('--graph-hl') || '#232323']].forEach(([mid, col]) => {
+    defs.append('marker').attr('id', mid).attr('viewBox', '0 -5 10 10').attr('refX', 9).attr('refY', 0)
+      .attr('markerWidth', 7).attr('markerHeight', 7).attr('orient', 'auto')
+      .append('path').attr('d', 'M0,-5L10,0L0,5').attr('fill', col);
+  });
+  const nodeR = d => d.isHub ? 14 : 5 + Math.min(12, fullDegree[d.id] || 0);
+  const lid = x => (typeof x === 'object' ? x.id : x);
+  // Explicit in/out degree per node for the tooltip ("depends on n · required by m"); implicit hub links excluded
+  const outDeg = {}, inDeg = {};
+  links.forEach(l => { const s = lid(l.source), tt = lid(l.target); outDeg[s] = (outDeg[s] || 0) + 1; inDeg[tt] = (inDeg[tt] || 0) + 1; });
 
   // Static layout (stage 3): from this node count on, the layout is no longer animated live but
   // computed synchronously up front and drawn once. The tick animation with thousands of DOM
@@ -1862,13 +1884,13 @@ function renderGraph(items, findings) {
   const linkCol = cssVar('--graph-link') || '#D7D7D7';
   const linkColImp = cssVar('--graph-link-implicit') || '#C9C9C9';
   const link = g.append('g').selectAll('line').data(allLinks, d => d.key).join('line')
-    .attr('stroke', d => d.weak ? '#FE8A25' : (d.implicit ? linkColImp : linkCol))
+    .attr('stroke', d => d.weak ? (cssVar('--graph-weak') || '#D55E00') : (d.implicit ? linkColImp : linkCol))
     .attr('stroke-width', d => d.weak ? 2.5 : (d.implicit ? 1 : 1.2))
     .attr('stroke-dasharray', d => d.implicit ? '4,4' : null)
-    .attr('marker-end', d => d.implicit ? null : 'url(#arrow)');
+    .attr('marker-end', d => d.implicit ? null : (d.weak ? 'url(#arrow-weak)' : 'url(#arrow)'));
 
   const node = g.append('g').selectAll('circle').data(nodes, d => d.id).join('circle')
-    .attr('r', d => d.isHub ? 14 : 5 + Math.min(12, fullDegree[d.id] || 0))
+    .attr('r', nodeR)
     .attr('fill', d => tierColor(d.cls))
     .attr('stroke', cssVar('--node-stroke') || '#fff').attr('stroke-width', 1.5)
     .style('cursor', 'pointer')
@@ -1881,7 +1903,7 @@ function renderGraph(items, findings) {
 
   node.append('title').text(d => d.isHub
     ? d.name + tr(' — Sammelknoten: bündelt die impliziten Abhängigkeiten aller Workloads auf die Tier-0-Systeme', ' — aggregate node: bundles the implicit dependencies of all workloads on the tier-0 systems')
-    : d.name + ' (' + tierLabel(d.cls) + ') — ' + (fullDegree[d.id] || 0) + tr(' Verbindung(en)', ' connection(s)'));
+    : d.name + ' (' + tierLabel(d.cls) + ') — ' + tr('hängt ab von: ', 'depends on: ') + (outDeg[d.id] || 0) + tr(' · wird benötigt von: ', ' · required by: ') + (inDeg[d.id] || 0));
 
   const label = g.append('g').selectAll('text').data(nodes, d => d.id).join('text')
     // No permanent labels in the static layout (unreadable + expensive with thousands of nodes); hover still shows them
@@ -1890,13 +1912,29 @@ function renderGraph(items, findings) {
 
   node.on('mouseenter', (event, d) => {
     label.filter(n => n.id === d.id).classed('always', true).raise();
+    // Direction highlight (v0.16.0): solid = d depends on · dashed = required by d · everything else fades
+    const near = new Set([d.id]);
+    allLinks.forEach(l => { const s = lid(l.source), tt = lid(l.target); if (!l.implicit) { if (s === d.id) near.add(tt); if (tt === d.id) near.add(s); } });
+    link.classed('hl-out', l => !l.implicit && lid(l.source) === d.id)
+        .classed('hl-in', l => !l.implicit && lid(l.target) === d.id)
+        .classed('hl-dim', l => l.implicit || (lid(l.source) !== d.id && lid(l.target) !== d.id));
+    link.filter(l => !l.implicit && (lid(l.source) === d.id || lid(l.target) === d.id)).raise();
+    node.classed('hl-dim', n => !near.has(n.id));
+    label.classed('hl-dim', n => !near.has(n.id));
   }).on('mouseleave', (event, d) => {
     if (fullDegree[d.id] < 3) label.filter(n => n.id === d.id).classed('always', false);
+    link.classed('hl-out', false).classed('hl-in', false).classed('hl-dim', false);
+    node.classed('hl-dim', false); label.classed('hl-dim', false);
   });
 
   function drawPositions() {
-    link.attr('x1', d => d.source.x).attr('y1', d => d.source.y)
-        .attr('x2', d => d.target.x).attr('y2', d => d.target.y);
+    // Lines start/end at the circle edges so the arrowhead is visible for every node size
+    link.each(function (d) {
+      const dx = d.target.x - d.source.x, dy = d.target.y - d.source.y, len = Math.sqrt(dx * dx + dy * dy) || 1;
+      const ux = dx / len, uy = dy / len, rs = nodeR(d.source) + 1, rt = nodeR(d.target) + 2;
+      this.setAttribute('x1', d.source.x + ux * rs); this.setAttribute('y1', d.source.y + uy * rs);
+      this.setAttribute('x2', d.target.x - ux * rt); this.setAttribute('y2', d.target.y - uy * rt);
+    });
     node.attr('cx', d => d.x).attr('cy', d => d.y);
     label.attr('x', d => d.x).attr('y', d => d.y);
   }
@@ -1918,7 +1956,9 @@ function renderGraph(items, findings) {
     '<span class="badge"><span class="badge-dot" style="background:' + tierColor(t) + '"></span>' + escapeHtml(tierLabel(t)) + '</span>'
   ).join('') +
     (hasOutOfScope ? '<span class="badge"><span class="badge-dot" style="background:' + OUT_OF_SCOPE_COLOR + '"></span>Out of Scope (kein Backup)</span>' : '') +
-    '<span class="badge"><span style="display:inline-block;width:16px;height:2px;background:#FE8A25;margin-right:6px;"></span>schwächere Abhängigkeit</span>' +
+    '<span class="badge">→ Pfeil = hängt ab von</span>' +
+    '<span class="badge"><span style="display:inline-block;width:16px;height:2px;background:var(--graph-weak);margin-right:6px;"></span>schwächere Abhängigkeit</span>' +
+    '<span class="badge" title="Maus über einen Knoten: durchgezogen = dieser Workload hängt ab von · gestrichelt = wird benötigt von · Rest blendet aus">Hover: durchgezogen = hängt ab von · gestrichelt = wird benötigt von</span>' +
     (implicitLinks.length ? '<span class="badge"><span style="display:inline-block;width:16px;border-top:2px dashed #ADACAF;margin-right:6px;"></span>implizite Foundation-Abhängigkeit</span>' : '');
 
   // Foundational (tier 0) is HIDDEN in the network by default: AD/DNS and friends connect to almost
@@ -2698,9 +2738,9 @@ function suggestFoundationalCandidates() {
 // BLOCK 11 · Tab 1 assessment table: filters, column chooser, pagination, editing, bulk edit, delete
 // ------------------------------------------------------------------------------------------------
 // Depends : Blocks 4, 10, 12 (autoSaveProgress), 13 (export button), 18 (prequal badge).
-// Provides: buildNameIndex()/resolveDepsText() (dependency resolution), renderCollectTable() (main render),
+// Provides: buildNameIndex()/resolveDepsText()/normalizeDepsText() (dependency resolution), renderCollectTable() (main render),
 //           event delegation on #collect-table (input/change/blur/click), COLLECT_COLUMNS (column chooser),
-//           bulk edit, removeItemsFromState()/deleteItems()/undoLastDelete()
+//           bulk edit incl. applyBulkDeps() (v0.16.0, #27), removeItemsFromState()/deleteItems()/undoLastDelete()
 // Note    : Adding a table column means updating the nth-child indexes in COLLECT_COLUMNS and the sticky CSS.
 // ================================================================================================
 // ---------------- Tab 2: editable classification table ----------------
@@ -2727,6 +2767,41 @@ function resolveDepsText(depsText, excludeId, nameIndex) {
     if (match && match.id !== excludeId) ids.push(match.id); else unresolved.push(n);
   });
   return { ids, unresolved };
+}
+
+// Normalizes a "depends on" text the way the table does on blur: plain numeric IDs become names, names get
+// their canonical spelling; a reference to selfId (or an unknown token) is kept as typed and reported as
+// unresolved. Shared by the table (block 11 blur handler) and the bulk edit (v0.16.0, #27).
+function normalizeDepsText(text, selfId, idx, byId) {
+  idx = idx || buildNameIndex();
+  byId = byId || new Map(collectState.items.map(it => [it.id, it]));
+  const segments = (text || '').split(',').map(s => s.trim()).filter(Boolean);
+  const unresolved = [];
+  const normalized = segments.map(seg => {
+    const asId = parseInt(seg, 10);
+    if (String(asId) === seg) {
+      const match = byId.get(asId);
+      if (match && match.id !== selfId) return match.name;
+    }
+    const byName = idx.get(seg.toLowerCase());
+    if (byName && byName.id !== selfId) return byName.name;
+    unresolved.push(seg);
+    return seg;
+  });
+  return { text: normalized.join(', '), unresolved: unresolved };
+}
+// Bulk "depends on" (v0.16.0, #27): add / replace / remove already-normalized names on one item. Pure (testable).
+// A target equal to the item itself is skipped; comparison is case-insensitive; the existing text is normalized first.
+function applyBulkDeps(it, targets, mode) {
+  const own = (it.name || '').trim().toLowerCase();
+  const tg = targets.filter(n => n.toLowerCase() !== own);
+  const cur = normalizeDepsText(it.depsText, it.id).text.split(',').map(s => s.trim()).filter(Boolean);
+  const tgSet = new Set(tg.map(n => n.toLowerCase()));
+  let next;
+  if (mode === 'replace') next = tg;
+  else if (mode === 'remove') next = cur.filter(n => !tgSet.has(n.toLowerCase()));
+  else { const have = new Set(cur.map(n => n.toLowerCase())); next = cur.concat(tg.filter(n => !have.has(n.toLowerCase()))); }
+  return next.join(', ');
 }
 
 let lastDatalistSig = null;
@@ -3100,18 +3175,7 @@ document.getElementById('collect-table').addEventListener('blur', (e) => {
   const item = collectState.items.find(it => it.id === id);
   if (!item) return;
   const idx = buildNameIndex();
-  const byId = new Map(collectState.items.map(it => [it.id, it]));
-  const segments = (item.depsText || '').split(',').map(s => s.trim()).filter(Boolean);
-  const normalized = segments.map(seg => {
-    const asId = parseInt(seg, 10);
-    if (String(asId) === seg) {
-      const match = byId.get(asId);
-      if (match && match.id !== id) return match.name;
-    }
-    const byName = idx.get(seg.toLowerCase());
-    return (byName && byName.id !== id) ? byName.name : seg;
-  });
-  item.depsText = normalized.join(', ');
+  item.depsText = normalizeDepsText(item.depsText, id, idx).text;
   e.target.value = item.depsText;
   const stillUnresolved = resolveDepsText(item.depsText, id, idx).unresolved;
   e.target.classList.toggle('is-unresolved', stillUnresolved.length > 0);
@@ -3225,8 +3289,31 @@ function refreshBulkOverrideOptions() {
   if ([...sel.options].some(o => o.value === current)) sel.value = current;
 }
 
+// Bulk "depends on" field: resolve IDs -> names on blur, exactly like the table cell
+const BULK_DEPS_HINT_DE = 'Namen oder IDs, kommagetrennt — IDs werden beim Verlassen des Felds zu Namen aufgelöst';
+const bulkDepsInput = document.getElementById('bulk-deps');
+bulkDepsInput.addEventListener('blur', () => {
+  const r = normalizeDepsText(bulkDepsInput.value, null);
+  bulkDepsInput.value = r.text;
+  bulkDepsInput.classList.toggle('is-unresolved', r.unresolved.length > 0);
+  bulkDepsInput.title = r.unresolved.length ? tr('Nicht aufgelöst: ', 'Unresolved: ') + r.unresolved.join(', ')
+    : tr(BULK_DEPS_HINT_DE, 'Names or IDs, comma-separated — IDs are resolved to names when leaving the field');
+});
+
 document.getElementById('btn-bulk-apply').addEventListener('click', () => {
   if (selectedIds.size === 0) { alert(tr('Bitte zuerst Zeilen über die Checkbox links auswählen.', 'Please select rows first using the checkbox on the left.')); return; }
+  // "Depends on" (v0.16.0, #27): resolve first, refuse the whole action on unknown entries — no half-applied bulk
+  const depsRaw = bulkDepsInput.value.trim();
+  const depsMode = document.getElementById('bulk-deps-mode').value;
+  let depsTargets = null;
+  if (depsRaw !== '') {
+    const r = normalizeDepsText(depsRaw, null);
+    if (r.unresolved.length) {
+      alert(tr('„Abhängig von“ — nicht auflösbar: ', '"Depends on" — cannot be resolved: ') + r.unresolved.join(', ') + tr('. Bitte korrigieren, es wurde nichts geändert.', '. Please correct the entry, nothing was changed.'));
+      return;
+    }
+    depsTargets = r.text.split(',').map(s => s.trim()).filter(Boolean);
+  }
   // "" = do not change, "__clear__" = clear the value (back to unrated), number = set
   const scaleVal = id => document.getElementById(id).value;
   const applyScale = (it, field, v) => {
@@ -3250,13 +3337,16 @@ document.getElementById('btn-bulk-apply').addEventListener('click', () => {
     if (ownerVal !== '') it.owner = ownerVal;
     if (responsibleVal !== '') it.responsible = responsibleVal;
     if (emailVal !== '') it.responsibleEmail = emailVal;
+    if (depsTargets) it.depsText = applyBulkDeps(it, depsTargets, depsMode);
   });
   renderCollectTable();
   autoSaveProgress();
   // Reset the input fields to default ("do not change"); the row selection is kept
   ['bulk-bi', 'bulk-reg', 'bulk-ds', 'bulk-rk', 'bulk-foundational', 'bulk-outofscope', 'bulk-override',
-   'bulk-owner', 'bulk-responsible', 'bulk-email']
+   'bulk-owner', 'bulk-responsible', 'bulk-email', 'bulk-deps']
     .forEach(id => { document.getElementById(id).value = ''; });
+  document.getElementById('bulk-deps-mode').value = 'add';
+  bulkDepsInput.classList.remove('is-unresolved'); bulkDepsInput.title = tr(BULK_DEPS_HINT_DE, 'Names or IDs, comma-separated — IDs are resolved to names when leaving the field');
 });
 
 // ---- Delete rows (v0.14.0, backlog #29) ----
@@ -4012,10 +4102,13 @@ document.getElementById('btn-view-in-graph').addEventListener('click', () => {
 // ------------------------------------------------------------------------------------------------
 // Depends : Blocks 4, 10, 11, SheetJS.
 // Provides: handleValidateFile() (reads the file through the import pipeline: pickBestSheet, guessHeaderRow,
-//           classifyImportRows with the current filter settings), runValidation(ctx) (source-aware comparison,
-//           tombstones, severities, coverage of all sources, "import missing" action), validationLine()
+//           classifyImportRows with the current filter settings), evaluateValidation(ctx, items) (report builder,
+//           no DOM writes), runValidation(ctx) (shows one source, refreshes the marks of all validated sources),
+//           coverageHtml()/coverageBlockHtml() (clickable badges, re-check button), refreshValidatedSources(),
+//           recheckAllValidations(), validationLine()
 // Note    : v0.15.0 — a file is compared against the workloads that carry it as source (item.source);
 //           rows the import filters skip are never "missing". Legacy states without sources fall back to the whole list.
+//           v0.15.1 — validatedSources keeps the parsed file per source for the session; a badge click re-runs it.
 // ================================================================================================
 // ---------------- Tab 2: validation against the original file ----------------
 
@@ -4033,8 +4126,12 @@ function validationLine(icon, cssClass, text) {
   return '<div class="finding ' + cssClass + '"><span class="finding__text">' + icon + ' ' + text + '</span></div>';
 }
 
-let lastValidation = null;      // {fileName, headers, dataRows, sheetName} — for re-running after "import missing"
-const validatedSources = new Map(); // fileName -> {ok:bool, missing:int, extra:int, mismatches:int, at:Date} (session)
+let lastValidation = null;      // {fileName, headers, dataRows, sheetName} — the run currently shown
+// fileName -> {ok, missing, extra, mismatches, at, ctx}. Session only (v0.15.1): the parsed file (ctx) is kept so
+// that every validated source can be re-evaluated against the CURRENT list — on a badge click and on every run.
+// Nothing of this goes into the progress file: the raw rows are customer data and the marks are only meaningful
+// for the list as it is right now.
+const validatedSources = new Map();
 
 function handleValidateFile(file) {
   validateDropLabel.textContent = tr('⏳ Verarbeite ', '⏳ Processing ') + file.name + ' ...';
@@ -4069,27 +4166,66 @@ function handleValidateFile(file) {
 
 // Source label of an item as shown in the coverage line (manual rows have no import source)
 function itemSources(it) { return (it.source || '').split(' + ').map(s => s.trim()).filter(Boolean); }
-function coverageHtml(items) {
+function coverageHtml(items, activeName) {
   const counts = new Map();
   items.forEach(it => { const src = itemSources(it); (src.length ? src : [tr('manuell erfasst', 'entered manually')]).forEach(s => counts.set(s, (counts.get(s) || 0) + 1)); });
+  // Sources validated in this session whose workloads are all gone from the list still get a badge (0) — otherwise
+  // a fully deleted source would silently disappear from the coverage line.
+  validatedSources.forEach((v, name) => { if (!counts.has(name)) counts.set(name, 0); });
   const parts = [...counts.entries()].map(([s, n]) => {
     const v = validatedSources.get(s);
     const mark = v ? (v.ok ? ' ✅' : ' ⚠') : '';
-    return '<span class="badge">' + escapeHtml(s) + ' · ' + n + mark + '</span>';
+    const label = escapeHtml(s) + ' · ' + n + mark;
+    if (v && v.ctx) {
+      const tip = s === activeName ? tr('Wird angezeigt · Klick prüft diese Quelle erneut', 'Shown below · click re-checks this source')
+                                   : tr('Ergebnis dieser Quelle gegen die aktuelle Liste anzeigen', 'Show the result for this source against the current list');
+      return '<button type="button" class="badge badge--link' + (s === activeName ? ' badge--active' : '') + '" data-val-src="' + escapeHtml(s) + '" title="' + escapeHtml(tip) + '">' + label + '</button>';
+    }
+    return '<span class="badge" title="' + escapeHtml(tr('In dieser Sitzung noch nicht geprüft — Datei erneut hochladen', 'Not validated in this session — upload the file again')) + '">' + label + '</span>';
   });
   return parts.length ? parts.join(' ') : '–';
 }
+function coverageBlockHtml(items, activeName) {
+  return '<div class="graph-note validation-coverage" style="margin-bottom:8px;"><strong>' + tr('Quellen in der Liste: ', 'Sources in the list: ') + '</strong>' + coverageHtml(items, activeName) +
+    (validatedSources.size ? '<br>' + tr('✅ = mit dieser Quelldatei geprüft, ohne Abweichung · ⚠ = geprüft, mit Abweichungen · Klick auf eine geprüfte Quelle zeigt ihr Ergebnis (immer gegen den aktuellen Stand neu berechnet)',
+      '✅ = validated against its file without deviations · ⚠ = validated, with deviations · click a validated source to show its result (always recomputed against the current list)') +
+      ' <button type="button" class="btn-ghost" id="btn-validation-recheck" style="margin-left:10px; padding:3px 10px; font-size:12px;" title="' +
+      escapeHtml(tr('Alle in dieser Sitzung geprüften Quellen gegen die aktuelle Liste neu prüfen', 'Re-check all sources validated in this session against the current list')) + '">↻ ' +
+      tr('Erneut prüfen', 'Re-check') + ' (' + validatedSources.size + ')</button>' : '') + '</div>';
+}
+// "Re-check": every validated source against the current list, the shown source stays the shown one
+function recheckAllValidations() {
+  if (!lastValidation) return;
+  runValidation(lastValidation); // re-runs the shown source and refreshes the marks of all others
+}
+// Re-evaluate every other validated source against the current list so that the marks stay honest
+function refreshValidatedSources(activeName) {
+  validatedSources.forEach((v, name) => {
+    if (name === activeName || !v.ctx) return;
+    const r = evaluateValidation(v.ctx, collectState.items);
+    if (r.fatal) return;
+    v.ok = r.ok; v.missing = r.missing.length; v.extra = r.extraCount; v.mismatches = r.mismatchCount;
+  });
+}
+// Badge click → show that source's result (re-run, not cached)
+document.getElementById('validation-report').addEventListener('click', (e) => {
+  if (e.target.closest('#btn-validation-recheck')) { recheckAllValidations(); return; }
+  const b = e.target.closest('[data-val-src]');
+  if (!b) return;
+  const v = validatedSources.get(b.getAttribute('data-val-src'));
+  if (v && v.ctx) runValidation(v.ctx);
+});
 
-function runValidation(ctx) {
-  const report = document.getElementById('validation-report');
+// Builds the report for ONE source file against `items`. No DOM writes (reads the three filter checkboxes only),
+// so it can run for the shown source and silently for all other validated sources.
+function evaluateValidation(ctx, items) {
   const headers = ctx.headers, dataRows = ctx.dataRows, fileName = ctx.fileName || '';
   const mapping = {};
   TARGET_FIELDS.forEach(f => { mapping[f.key] = guessColumn(headers, f.keywords); });
   let html = '';
   if (mapping.name < 0) {
-    report.innerHTML = validationLine('❌', '', tr('Keine Namens-Spalte in der Quelldatei erkannt — Validierung nicht möglich. Bitte prüfen, ob die richtige Datei/das richtige Arbeitsblatt geladen wurde.',
-      'No name column detected in the source file — validation not possible. Please check whether the correct file/worksheet was loaded.'));
-    return;
+    return { fatal: true, html: validationLine('❌', '', tr('Keine Namens-Spalte in der Quelldatei erkannt — Validierung nicht möglich. Bitte prüfen, ob die richtige Datei/das richtige Arbeitsblatt geladen wurde.',
+      'No name column detected in the source file — validation not possible. Please check whether the correct file/worksheet was loaded.')) };
   }
 
   // (1) Same pipeline and the same filter settings as the import: skipped rows are reported, never "missing"
@@ -4112,15 +4248,11 @@ function runValidation(ctx) {
 
   // (3) Source-aware scope: compare against the workloads that came from THIS file. Legacy states without
   //     sources (or a renamed file) fall back to the whole list — and say so.
-  const items = collectState.items;
   const scoped = items.filter(it => itemSources(it).includes(fileName));
   const scopeAll = scoped.length === 0;
   const scopeItems = scopeAll ? items : scoped;
   const itemsByName = new Map();
   items.forEach(it => { if (it.name.trim()) itemsByName.set(it.name.trim().toLowerCase(), it); });
-
-  html += '<div class="graph-note" style="margin-bottom:8px;"><strong>' + tr('Quellen in der Liste: ', 'Sources in the list: ') + '</strong>' + coverageHtml(items) +
-    (validatedSources.size ? '<br>' + tr('✅ = mit dieser Quelldatei geprüft, ohne Abweichung · ⚠ = geprüft, mit Abweichungen', '✅ = validated against its file without deviations · ⚠ = validated, with deviations') : '') + '</div>';
 
   html += validationLine('ℹ', 'finding--info', tr('Abgleich „', 'Comparison "') + escapeHtml(fileName) + tr('": ', '": ') + sourceMap.size + tr(' Workloads in der Quelldatei', ' workloads in the source file') +
     (skippedParts.length ? tr(' (wie beim Import übersprungen: ', ' (skipped as on import: ') + skippedParts.join(', ') + ')' : '') +
@@ -4201,18 +4333,27 @@ function runValidation(ctx) {
     html += validationLine('✅', 'finding--ok', tr('Interner Konsistenz-Check bestanden: keine doppelten/leeren Namen, alle Abhängigkeiten auflösbar.', 'Internal consistency check passed: no duplicate/empty names, all dependencies resolvable.'));
   }
 
-  // Coverage bookkeeping for this session (several files can be validated one after another)
-  validatedSources.set(fileName, { ok: warnings === 0, missing: missing.length, extra: extraOther.length, mismatches: mismatches.length, at: new Date() });
+  // The per-source mark reflects deviations against the FILE only; the internal consistency check above is
+  // independent of the file and is reported, but does not turn a source's mark to ⚠.
+  return { fatal: false, html: html, ok: !missing.length && !extraOther.length && !mismatches.length, warnings: warnings,
+    missing: missing, extraCount: extraOther.length, mismatchCount: mismatches.length, sizeFactor: sizeFactor };
+}
 
-  report.innerHTML = html;
-  // Re-render the coverage line with the fresh validation state
-  const cov = report.querySelector('.graph-note');
-  if (cov) cov.innerHTML = '<strong>' + tr('Quellen in der Liste: ', 'Sources in the list: ') + '</strong>' + coverageHtml(items) +
-    '<br>' + tr('✅ = mit dieser Quelldatei geprüft, ohne Abweichung · ⚠ = geprüft, mit Abweichungen', '✅ = validated against its file without deviations · ⚠ = validated, with deviations');
+function runValidation(ctx) {
+  const report = document.getElementById('validation-report');
+  const fileName = ctx.fileName || '';
+  const items = collectState.items;
+  const r = evaluateValidation(ctx, items);
+  if (r.fatal) { report.innerHTML = r.html; return; }
+  lastValidation = ctx;
+  // Coverage bookkeeping for this session: this source, then all other validated sources against the current list
+  validatedSources.set(fileName, { ok: r.ok, missing: r.missing.length, extra: r.extraCount, mismatches: r.mismatchCount, at: new Date(), ctx: ctx });
+  refreshValidatedSources(fileName);
+  report.innerHTML = coverageBlockHtml(items, fileName) + r.html;
   // (5) Reconcile: import the missing workloads through the normal path (duplicate dialog logic, tombstones cleared)
   const btn = document.getElementById('btn-validation-import-missing');
   if (btn) btn.addEventListener('click', () => {
-    commitImport(missing.map(s => Object.assign({}, s)), 'skip', 0, fileName, sizeFactor);
+    commitImport(r.missing.map(s => Object.assign({}, s)), 'skip', 0, fileName, r.sizeFactor);
     if (lastValidation) runValidation(lastValidation);
   });
   if (typeof i18nApply === 'function') i18nApply(report);
@@ -5377,16 +5518,15 @@ updatePrequalQuotaNote();
 </script>
 <script>
 // ================================================================================================
-// BLOCK 19 · Settings and UX shell: theme, colorblind palette, easter egg, feedback link, runtime-error banner, welcome modal
+// BLOCK 19 · Settings and UX shell: theme, easter egg, feedback link, runtime-error banner, welcome modal
 // ------------------------------------------------------------------------------------------------
 // Depends : Blocks 4, 5, 7, 11, 15 (rerenderAllViews).
-// Provides: applyTheme(), applyColorblind(), feedbackUrl()/openFeedback() (GitHub issue link), showRuntimeError(),
+// Provides: applyTheme(), feedbackUrl()/openFeedback() (GitHub issue link), showRuntimeError(),
 //           openWelcome(); device settings in localStorage (never in the progress file)
 // ================================================================================================
-// ---------------- Settings: theme, colorblind mode, easter egg, feedback, welcome (v0.11.0) ----------------
+// ---------------- Settings: theme, easter egg, feedback, welcome (v0.11.0; colorblind switch removed in v0.16.0) ----------------
 // Device settings (localStorage, NOT in the progress JSON, like the language choice):
 const THEME_KEY = 'dr_theme';         // 'dark' | 'light'
-const CB_KEY = 'dr_colorblind';       // '1' = Okabe-Ito-Tier-Palette
 const COMIC_KEY = 'dr_comic';         // '1' = Easteregg aktiv
 
 function rerenderAllViews() {
@@ -5399,9 +5539,7 @@ function rerenderAllViews() {
 
 function updateOptsStates() {
   const dark = document.documentElement.classList.contains('theme-dark');
-  const cb = !!TIER_COLORS['Tier 4 – Bronze'] && TIER_COLORS['Tier 4 – Bronze'] === '#0072B2';
   document.getElementById('opt-dark-state').textContent = dark ? tr('AN', 'ON') : tr('AUS', 'OFF');
-  document.getElementById('opt-cb-state').textContent = cb ? tr('AN', 'ON') : tr('AUS', 'OFF');
 }
 
 function applyTheme(dark, persist) {
@@ -5409,12 +5547,6 @@ function applyTheme(dark, persist) {
   if (persist) { try { localStorage.setItem(THEME_KEY, dark ? 'dark' : 'light'); } catch (e) {} }
   updateOptsStates();
   rerenderAllViews(); // graph/charts read their colors from the CSS variables when they are built
-}
-function applyColorblind(on, persist) {
-  TIER_COLORS = defaultTierColors(on);
-  if (persist) { try { on ? localStorage.setItem(CB_KEY, '1') : localStorage.removeItem(CB_KEY); } catch (e) {} }
-  updateOptsStates();
-  rerenderAllViews();
 }
 function applyComic(on, persist) {
   document.documentElement.classList.toggle('font-comic', on);
@@ -5434,9 +5566,6 @@ document.addEventListener('click', (e) => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') optsMenu.classList.remove('open'); });
 document.getElementById('opt-dark').addEventListener('click', () => {
   applyTheme(!document.documentElement.classList.contains('theme-dark'), true);
-});
-document.getElementById('opt-colorblind').addEventListener('click', () => {
-  applyColorblind(TIER_COLORS['Tier 4 – Bronze'] !== '#0072B2', true);
 });
 
 // ---- Feedback (GitHub Issues) ----
@@ -5539,7 +5668,7 @@ document.getElementById('opt-welcome').addEventListener('click', () => {
 // ---- Apply stored device settings (relevant before the first real render) ----
 try {
   if (localStorage.getItem(COMIC_KEY) === '1') applyComic(true, false);
-  if (localStorage.getItem(CB_KEY) === '1') { TIER_COLORS = defaultTierColors(true); }
+  try { localStorage.removeItem('dr_colorblind'); } catch (e) {} // v0.16.0: switch removed, one palette for everyone
   if (localStorage.getItem(THEME_KEY) === 'dark') { document.documentElement.classList.add('theme-dark'); }
   updateOptsStates();
   rerenderAllViews();
@@ -5597,8 +5726,6 @@ const STATIC_I18N = {
   "Prod-Muster (heben nur die Konfidenz):": "Prod patterns (only raise confidence):",
   "✕ Abbrechen": "✕ Cancel",
   "Optionen": "Options",
-  "Farbfehlsicht-Modus": "Colorblind mode",
-  "Farbfehlsicht-freundliche Tier-Farbpalette (Okabe-Ito)": "Colorblind-friendly tier color palette (Okabe-Ito)",
   "Feedback / Problem melden (GitHub)": "Feedback / report issue (GitHub)",
   "About & Disclaimer": "About & disclaimer",
   "Neu starten (alles zurücksetzen)": "Start over (reset everything)",
@@ -5710,6 +5837,11 @@ const STATIC_I18N = {
   "Zeilen über die Checkbox links auswählen (Kopfzeile = alle sichtbaren), dann die gewünschten Änderungen auf alle ausgewählten anwenden. \"–\" bzw. \"– nicht ändern –\" lässt das jeweilige Feld unangetastet.": "Select rows using the checkbox on the left (header = all visible), then apply the desired changes to all selected rows. \"–\" or \"– don't change –\" leaves the respective field untouched.",
   "Für": "Apply to", "ausgewählte anwenden:": "selected:",
   "– nicht ändern –": "– don't change –",
+  "hinzufügen": "add", "ersetzen": "replace", "entfernen": "remove",
+  "Namen oder IDs, kommagetrennt — IDs werden beim Verlassen des Felds zu Namen aufgelöst": "Names or IDs, comma-separated — IDs are resolved to names when leaving the field",
+  "→ Pfeil = hängt ab von": "→ arrow = depends on",
+  "Hover: durchgezogen = hängt ab von · gestrichelt = wird benötigt von": "Hover: solid = depends on · dashed = required by",
+  "Maus über einen Knoten: durchgezogen = dieser Workload hängt ab von · gestrichelt = wird benötigt von · Rest blendet aus": "Mouse over a node: solid = this workload depends on · dashed = required by · the rest fades",
   "Ja setzen": "Set yes", "Nein setzen": "Set no",
   "✕ leeren": "✕ clear",
   "Anwenden": "Apply",

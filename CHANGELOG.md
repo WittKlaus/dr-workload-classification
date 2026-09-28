@@ -8,6 +8,31 @@ All notable changes to this project are documented here.
 - Backlog (next): bulk-edit "Depends on" for a selection, editable Excel re-import into tab ①,
   recovery-plan type per runbook group
 
+## [2026-09-28] — v0.16.0-beta
+One tier palette for everyone, bulk edit for dependencies, a readable dependency network, and validation results that stay reachable.
+
+- One tier palette for everyone: the Okabe-Ito colours (until now the optional colorblind palette) are the only
+  palette, with lightened variants in dark mode. Foundation (near-black) and Silver (bluish green) can no longer
+  be confused, and the colorblind switch in the options menu is gone — there is nothing left to switch. Weaker-
+  dependency edges in the network are vermilion instead of orange so they do not collide with Gold
+- Bulk edit: "Depends on" for all selected rows with the modes add / replace / remove. IDs are resolved
+  to names exactly like in the table cell (on leaving the field), names are matched case-insensitively and
+  written in their canonical spelling, a selected row never gets itself as a dependency, and an unknown
+  entry stops the whole action before anything changes
+- Dependency network: arrowheads are larger and darker and the edge now ends at the node's edge, so the
+  direction (arrow = depends on) is visible for every node size; weaker-dependency edges carry an orange
+  arrowhead. Hovering a workload highlights what it depends on (solid) and what requires it (dashed),
+  fades everything else and the tooltip shows both counts; the legend explains arrow and hover
+
+- The coverage line's badges become buttons for every source file validated in this session; a click shows
+  that source's result. The result is always recomputed against the current list, never shown from a cache.
+  A "Re-check" button next to the legend re-runs all validated sources after edits, without uploading again
+- The ✅/⚠ marks of all validated sources are recomputed on every validation run, so a workload deleted
+  after a green check is visible immediately. A mark reflects deviations against the file only (missing,
+  extra, field values); the internal consistency check (duplicates, unnamed rows, unresolvable
+  dependencies) is still reported but no longer flips a source's mark
+- Session only by design: the parsed files and the marks are not written to the progress file
+
 ## [2026-09-28] — v0.15.0-beta
 Validation against the source file rebuilt for multi-source assessments.
 

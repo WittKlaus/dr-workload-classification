@@ -101,7 +101,7 @@ Everything the user loads is treated as untrusted:
 - Autosave to `localStorage` (`dr_workload_collect_autosave_v2`) 600 ms after every edit.
 - Progress file = `snapshotState()` as JSON, including rules and options. Loaded through
   `restoreState()` → `sanitizeProgressData()`.
-- Device settings (theme, colorblind palette, hidden columns, welcome acknowledgement) live in
+- Device settings (theme, hidden columns, welcome acknowledgement) live in
   `localStorage` only and are never part of the progress file.
 
 Adding state means touching three functions: `snapshotState`, `restoreState` and

@@ -3,7 +3,7 @@
 **Classify customer workloads into DR protection classes (Tier 0–4), capture the dependencies that form a service, and derive Veeam Recovery Orchestrator runbook groups — in one offline HTML file.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-![Version](https://img.shields.io/badge/version-v0.15.0--beta-blue.svg)
+![Version](https://img.shields.io/badge/version-v0.16.0--beta-blue.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-informational.svg)
 
 > **Community project — not an official Veeam product.** This tool is a working aid created by a Veeam
@@ -74,7 +74,7 @@ guidance on how foundation systems are handled in a DR event versus in a DataLab
 
 ![Runbook groups with foundation block and mixed-class warning](docs/screenshots/runbooks.png)
 
-**Validation.** Before hand-over, upload a source file again: it is read exactly like on import and compared only with the workloads that came from it — missing or extra workloads and deviating size/OS/cluster values are reported, deliberately deleted workloads and filtered rows appear as notes, and missing ones can be imported with one click.
+**Validation.** Before hand-over, upload a source file again: it is read exactly like on import and compared only with the workloads that came from it — missing or extra workloads and deviating size/OS/cluster values are reported, deliberately deleted workloads and filtered rows appear as notes, and missing ones can be imported with one click. Every file validated in the session stays one click away in the coverage line, always re-checked against the current list.
 
 **Export.** A formatted Excel workbook (Instructions, Class-Matrix, Workload-Register, Dashboard,
 Runbook-Plan) that round-trips back into the tool, plus a progress file (JSON) for resuming later.
@@ -124,7 +124,7 @@ protects itself above 1,500 workloads (unconnected nodes are dropped) and switch
 above 600 nodes (a selector forces animated or static). For very large environments, split the
 survey into waves, for example per site or cluster.
 
-Dark mode and a colorblind-friendly tier palette are available from the ⚙ menu.
+Dark mode is available from the ⚙ menu. The tier palette is the Okabe-Ito set, chosen to stay distinguishable for the common forms of colour-vision deficiency, so there is no separate colorblind mode.
 
 <details>
 <summary>Dark mode: assessment table</summary>
