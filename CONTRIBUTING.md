@@ -16,7 +16,8 @@ Please keep that in mind when waiting for a reply.
 
 ## Working on the code
 
-The tool is a single HTML file by design. The offline promise means it must run from a USB stick in
+Start with [ARCHITECTURE.md](ARCHITECTURE.md): it maps the script blocks, the data flow and the stable
+keys. The tool is a single HTML file by design. The offline promise means it must run from a USB stick in
 a customer meeting room. Please keep it that way:
 
 - No external resources at runtime, no network calls, no telemetry.

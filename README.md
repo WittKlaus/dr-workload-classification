@@ -3,7 +3,7 @@
 **Classify customer workloads into DR protection classes (Tier 0–4), capture the dependencies that form a service, and derive Veeam Recovery Orchestrator runbook groups — in one offline HTML file.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-![Version](https://img.shields.io/badge/version-v0.14.1--beta-blue.svg)
+![Version](https://img.shields.io/badge/version-v0.14.2--beta-blue.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-informational.svg)
 
 > **Community project — not an official Veeam product.** This tool is a working aid created by a Veeam
@@ -40,7 +40,7 @@ Veeam ONE report *VMs Configuration* (vSphere and Hyper-V, exported as Excel); C
 and CSV work through the generic column mapping. Several sources can be imported one after another
 with a duplicate dialog. Hierarchical reports are handled: header repeats, cluster/host subtotals and
 section headers are skipped, the cluster/host is inherited as location, Veeam replicas are excluded
-by default. Then rate each workload on three criteria (1–5):
+by default, as are templates, SRM placeholders and vSphere system VMs (vCLS, Supervisor control plane). Then rate each workload on three criteria (1–5):
 
 | Criterion | Weight |
 |---|---|
@@ -112,6 +112,7 @@ you load are treated as untrusted input and type-checked. Details in [SECURITY.m
 | `Examples/Manual_Workbook/` | Filled examples of the manual-entry workbook |
 | `Outputs/` | The customer manual-entry workbook (for engagements without RVTools) and the export template |
 | `CHANGELOG.md` | Release history; the current release is also shown in the tool's About dialog |
+| `ARCHITECTURE.md` | Structure of the single file: script blocks, data flow, stable keys, how to verify a change |
 | `docs/screenshots/` | The screenshots used in this README |
 
 ## Limits
@@ -132,8 +133,8 @@ Dark mode and a colorblind-friendly tier palette are available from the ⚙ menu
 
 ## Contributing
 
-Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). Field feedback on the
-methodology is as valuable as code. Commits are signed off (DCO).
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md); [ARCHITECTURE.md](ARCHITECTURE.md)
+is the map of the source file. Field feedback on the methodology is as valuable as code. Commits are signed off (DCO).
 
 ## License
 

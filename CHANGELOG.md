@@ -5,6 +5,23 @@ All notable changes to this project are documented here.
 ---
 
 ## [Unreleased]
+- Backlog (next): bulk-edit "Depends on" for a selection, editable Excel re-import into tab ①,
+  recovery-plan type per runbook group
+
+## [2026-09-28] — v0.14.2-beta
+Import filter for vSphere system VMs and a readability pass over the source. No change to the
+assessment logic.
+
+- Import: vSphere system VMs are excluded together with templates and SRM placeholders — vCLS
+  (`vCLS-<uuid>`, `vCLS (n)`) and the Supervisor control plane VMs of vSphere with Tanzu
+  (`SupervisorControlPlaneVM`, legacy `stCtlVM`). They are managed by vCenter and are never workloads
+  to protect; the count is shown in the import summary. Switching the checkbox off restores the
+  previous behaviour
+- Source readability: every comment in the file is English; each of the 16 application script blocks
+  starts with a header stating purpose, dependencies and entry points; a source map at the top of
+  the file lists all blocks; `ARCHITECTURE.md` documents the structure, data flow, stable keys and
+  how to verify a change. Identifiers and stored field names are unchanged on purpose (progress files
+  and Excel exports of earlier versions keep working)
 - README: screenshots of the import step, assessment table, dependency network, overview and runbook
   groups (light and dark mode); example TEST_C now carries English class-definition texts
 - Backlog (next): bulk-edit "Depends on" for a selection, editable Excel re-import into tab ①,
