@@ -782,11 +782,13 @@ details.options-panel[open] summary::before { content:"▼ "; }
 
     <div class="card hidden" id="validation-card">
       <div class="card__title">4. Validierung gegen die Originaldatei</div>
-      <div class="card__subtitle">Unabhängiger Gegencheck vor der Abgabe: die ursprüngliche Quelldatei
-        (RVTools-Export, vCenter-/CMDB-Liste) erneut hochladen. Das Tool vergleicht sie mit der aktuellen Liste oben und
-        meldet fehlende oder zusätzliche Workloads sowie abweichende Größen-, OS- und Cluster-Angaben pro Workload —
-        so fällt sofort auf, falls beim Import oder Bearbeiten etwas durcheinandergeraten ist.
-        Zusätzlich läuft ein interner Konsistenz-Check (doppelte/leere Namen, nicht auflösbare Abhängigkeiten).</div>
+      <div class="card__subtitle">Unabhängiger Gegencheck vor der Abgabe: eine Quelldatei (RVTools-Export, Veeam-ONE-Report,
+        CMDB-Liste) erneut hochladen. Sie wird wie beim Import gelesen (gleiche Blatt-/Kopfzeilen-Erkennung, gleiche
+        Filter) und nur mit den Workloads verglichen, die aus dieser Datei stammen — weitere Quellen werden als
+        Abdeckung ausgewiesen, nicht als Abweichung. Gemeldet werden fehlende oder zusätzliche Workloads sowie
+        abweichende Größen-, OS- und Cluster-Angaben; bewusst gelöschte Workloads und vom Import ausgeschlossene
+        Zeilen erscheinen als Hinweis. Fehlende lassen sich per Klick nachimportieren. Zusätzlich läuft ein interner
+        Konsistenz-Check (doppelte/leere Namen, nicht auflösbare Abhängigkeiten).</div>
       <div class="upload-zone" id="validate-drop-zone">
         <div id="validate-drop-label">📄 Originaldatei hierher ziehen oder klicken (.xlsx, .csv)</div>
         <input type="file" id="validate-file-input" accept=".xlsx,.csv">
@@ -1033,7 +1035,7 @@ details.options-panel[open] summary::before { content:"▼ "; }
 // Public version label (SemVer, beta phase = 0.x). Embedded in the status bar, About, progress JSON
 // and Excel export, so feedback always states which build is affected. Feature rounds bump the middle
 // number (0.10.0), pure fixes the last one.
-const TOOL_VERSION = 'v0.14.2-beta';
+const TOOL_VERSION = 'v0.15.0-beta';
 // Public repository (v0.14.1): source of releases, issues and the feedback channel. Links only, never data retrieval.
 const REPO_URL = 'https://github.com/WittKlaus/dr-workload-classification';
 // Release notes inside the tool (v0.13.0): key points per version only, newest entry first.
@@ -1042,6 +1044,12 @@ const REPO_URL = 'https://github.com/WittKlaus/dr-workload-classification';
 // & history") and in the welcome modal (newest entry only).
 const CHANGELOG = [
   { v: TOOL_VERSION, date: '2026-09-28', notes: [ // newest entry = current version (the literal lives only in TOOL_VERSION)
+    "Validation rebuilt: the source file is read through the same pipeline as the import (same sheet/header detection, same filters), so excluded rows are reported as skipped instead of missing",
+    "Validation is source-aware: a file is compared only against the workloads imported from it; other sources are listed as coverage, not as extras; several files can be validated one after another",
+    "Deleted workloads are remembered (name, source, time) and reported as deliberately deleted instead of missing; undo or re-import clears the marker",
+    "Validation: findings carry severities (info / warning) and a one-click \"Import missing workloads\" action"
+  ]},
+  { v: 'v0.14.2-beta', date: '2026-09-28', notes: [
     "Import: vSphere system VMs (vCLS, Supervisor control plane) are excluded together with templates and SRM placeholders — they are managed by vCenter and are never workloads to protect",
     "Code readability: all source comments in English, every script block starts with a header (purpose, dependencies, entry points), table of contents at the top of the file — no functional change"
   ]},
@@ -2643,6 +2651,7 @@ function commitImport(parsed, strategy, skippedTemplates, src, sizeFactor) {
     importStructNoteText() +
     (sizeFactor !== 1 ? tr('Größen umgerechnet: ', 'Sizes converted: ') + (sizeFactor < 1 ? 'MiB→GiB' : 'TB→GiB') + '. ' : '') +
     tr('Quelle: ', 'Source: ') + src + tr('. Insgesamt ', '. Total of ') + collectState.items.length + tr(' in der Liste unten.', ' in the list below.');
+  clearTombstonesFor(parsed.map(pp => pp.name)); // re-imported names are no longer "deleted"
   suggestFoundationalCandidates();
 }
 
@@ -3257,6 +3266,18 @@ document.getElementById('btn-bulk-apply').addEventListener('click', () => {
 // old references would suddenly point at foreign systems. Tab 3 state with orphaned group keys does
 // no harm: the groups are recomputed from the remaining dependencies. Core logic without DOM (testable).
 let lastDeleteUndo = null; // { removed:[{index,item}], depsChanged:[{id,prev}], refs }
+// Tombstones (v0.15.0): deliberately deleted workloads (name, source, time). The validator reports them as
+// "deleted on purpose" instead of "missing". Saved with the progress; cleared by undo or re-import.
+let deletedTombstones = [];
+const TOMBSTONE_MAX = 500;
+function addTombstones(items) {
+  items.forEach(it => { if ((it.name || '').trim()) deletedTombstones.push({ name: it.name.trim(), source: it.source || '', at: Date.now() }); });
+  if (deletedTombstones.length > TOMBSTONE_MAX) deletedTombstones = deletedTombstones.slice(-TOMBSTONE_MAX);
+}
+function clearTombstonesFor(names) {
+  const set = new Set(names.map(n => String(n).trim().toLowerCase()).filter(Boolean));
+  deletedTombstones = deletedTombstones.filter(t => !set.has(t.name.toLowerCase()));
+}
 function removeItemsFromState(ids) {
   const idSet = new Set(ids);
   const removed = [], keep = [];
@@ -3301,6 +3322,7 @@ function deleteItems(ids) {
   const res = removeItemsFromState(ids);
   if (!res) return;
   lastDeleteUndo = res;
+  addTombstones(res.removed.map(r => r.item));
   document.getElementById('bulk-panel').open = true;
   renderCollectTable();
   autoSaveProgress();
@@ -3316,6 +3338,7 @@ function undoLastDelete() {
     collectState.items.splice(Math.min(r.index, collectState.items.length), 0, r.item);
   });
   u.depsChanged.forEach(d => { const it = collectState.items.find(x => x.id === d.id); if (it) it.depsText = d.prev; });
+  clearTombstonesFor(u.removed.map(r => r.item.name));
   renderCollectTable();
   autoSaveProgress();
   showDeleteNote('↩ ' + u.removed.length + tr(' Workload(s) wiederhergestellt.', ' workload(s) restored.'));
@@ -3353,6 +3376,7 @@ function snapshotState() {
     lastGroupUndoKey: lastGroupUndoKey,
     prequalRules: (typeof PREQUAL_RULES !== 'undefined') ? PREQUAL_RULES : undefined,
     prequalEnv: (typeof PREQUAL_ENV !== 'undefined') ? PREQUAL_ENV : undefined,
+    deletedTombstones: (typeof deletedTombstones !== 'undefined') ? deletedTombstones : undefined,
     toolVersion: TOOL_VERSION,
     savedAt: Date.now()
   };
@@ -3501,6 +3525,12 @@ function sanPrequalRules(raw) {
   });
   return out;
 }
+function sanTombstones(raw) { // [{name, source, at}], bounded
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  raw.slice(-500).forEach(t0 => { const t = sanObj(t0); if (!t) return; const name = sanStr(t.name, 500).trim(); if (name) out.push({ name: name, source: sanStr(t.source, 300), at: parseInt(t.at, 10) || 0 }); });
+  return out;
+}
 function sanPrequalEnv(raw) {
   const o = sanObj(raw); if (!o) return null;
   const d = (typeof defaultPrequalEnv === 'function') ? defaultPrequalEnv() : { nonprod: '', prod: '' };
@@ -3524,6 +3554,7 @@ function sanitizeProgressData(data) {
     lastGroupUndoKey: (typeof d.lastGroupUndoKey === 'string') ? sanStr(d.lastGroupUndoKey) : null,
     prequalRules: sanPrequalRules(d.prequalRules),
     prequalEnv: sanPrequalEnv(d.prequalEnv),
+    deletedTombstones: sanTombstones(d.deletedTombstones),
     toolVersion: sanStr(d.toolVersion, 40),
     savedAt: parseInt(d.savedAt, 10) || null
   };
@@ -3562,6 +3593,7 @@ function restoreState(rawData) {
   lastGroupUndoKey = data.lastGroupUndoKey;
   if (data.prequalRules && typeof PREQUAL_RULES !== 'undefined') PREQUAL_RULES = data.prequalRules;
   if (data.prequalEnv && typeof PREQUAL_ENV !== 'undefined') PREQUAL_ENV = data.prequalEnv;
+  if (typeof deletedTombstones !== 'undefined') deletedTombstones = data.deletedTombstones;
   if ((data.prequalRules || data.prequalEnv) && typeof renderPrequalCatalog === 'function') renderPrequalCatalog();
   renderOptionsTable();
   document.getElementById('collect-toolbar-card').classList.remove('hidden');
@@ -3979,7 +4011,11 @@ document.getElementById('btn-view-in-graph').addEventListener('click', () => {
 // BLOCK 14 · Tab 1 validation against the original source file
 // ------------------------------------------------------------------------------------------------
 // Depends : Blocks 4, 10, 11, SheetJS.
-// Provides: handleValidateFile(), runValidation() (source vs. list, field comparison, internal consistency)
+// Provides: handleValidateFile() (reads the file through the import pipeline: pickBestSheet, guessHeaderRow,
+//           classifyImportRows with the current filter settings), runValidation(ctx) (source-aware comparison,
+//           tombstones, severities, coverage of all sources, "import missing" action), validationLine()
+// Note    : v0.15.0 — a file is compared against the workloads that carry it as source (item.source);
+//           rows the import filters skip are never "missing". Legacy states without sources fall back to the whole list.
 // ================================================================================================
 // ---------------- Tab 2: validation against the original file ----------------
 
@@ -3997,18 +4033,33 @@ function validationLine(icon, cssClass, text) {
   return '<div class="finding ' + cssClass + '"><span class="finding__text">' + icon + ' ' + text + '</span></div>';
 }
 
+let lastValidation = null;      // {fileName, headers, dataRows, sheetName} — for re-running after "import missing"
+const validatedSources = new Map(); // fileName -> {ok:bool, missing:int, extra:int, mismatches:int, at:Date} (session)
+
 function handleValidateFile(file) {
   validateDropLabel.textContent = tr('⏳ Verarbeite ', '⏳ Processing ') + file.name + ' ...';
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
-      const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-      const sheetName = wb.SheetNames.find(n => /vinfo/i.test(n)) || wb.SheetNames[0];
+      // Same reading pipeline as the import (block 10): CSV encoding sniff, best sheet, header-row detection
+      const data = new Uint8Array(e.target.result);
+      let wb;
+      if (/\.csv$/i.test(file.name)) {
+        let text = null;
+        if (data.length >= 3 && data[0] === 0xEF && data[1] === 0xBB && data[2] === 0xBF) text = new TextDecoder('utf-8').decode(data.subarray(3));
+        else { try { text = new TextDecoder('utf-8', { fatal: true }).decode(data); } catch (err) { text = null; } }
+        wb = text !== null ? XLSX.read(text, { type: 'string' }) : XLSX.read(data, { type: 'array' });
+      } else {
+        wb = XLSX.read(data, { type: 'array' });
+      }
+      const sheetName = pickBestSheet(wb);
       const rows = XLSX.utils.sheet_to_json(wb.Sheets[sheetName], { header: 1, defval: '' });
-      const headers = (rows[0] || []).map(h => (h || '').toString());
-      const dataRows = rows.slice(1).filter(r => r.some(v => v !== ''));
-      validateDropLabel.textContent = '✅ ' + file.name + tr(' (Blatt "', ' (sheet "') + sheetName + '")';
-      runValidation(headers, dataRows);
+      const hr = guessHeaderRow(rows);
+      const headers = (rows[hr] || []).map(v => (v || '').toString());
+      const dataRows = rows.slice(hr + 1).filter(r => r.some(v => v !== ''));
+      validateDropLabel.textContent = '✅ ' + file.name + tr(' (Blatt "', ' (sheet "') + sheetName + tr('", Kopfzeile ', '", header row ') + (hr + 1) + ')';
+      lastValidation = { fileName: file.name, headers: headers, dataRows: dataRows, sheetName: sheetName };
+      runValidation(lastValidation);
     } catch (err) {
       validateDropLabel.textContent = tr('❌ Fehler: ', '❌ Error: ') + err.message;
     }
@@ -4016,112 +4067,154 @@ function handleValidateFile(file) {
   reader.readAsArrayBuffer(file);
 }
 
-function runValidation(headers, dataRows) {
-  const report = document.getElementById('validation-report');
-  const findField = key => TARGET_FIELDS.find(f => f.key === key);
-  const colName = guessColumn(headers, findField('name').keywords);
-  const colSize = guessColumn(headers, findField('size').keywords);
-  const colOs = guessColumn(headers, findField('os').keywords);
-  const colLoc = guessColumn(headers, findField('location').keywords);
-  let html = '';
+// Source label of an item as shown in the coverage line (manual rows have no import source)
+function itemSources(it) { return (it.source || '').split(' + ').map(s => s.trim()).filter(Boolean); }
+function coverageHtml(items) {
+  const counts = new Map();
+  items.forEach(it => { const src = itemSources(it); (src.length ? src : [tr('manuell erfasst', 'entered manually')]).forEach(s => counts.set(s, (counts.get(s) || 0) + 1)); });
+  const parts = [...counts.entries()].map(([s, n]) => {
+    const v = validatedSources.get(s);
+    const mark = v ? (v.ok ? ' ✅' : ' ⚠') : '';
+    return '<span class="badge">' + escapeHtml(s) + ' · ' + n + mark + '</span>';
+  });
+  return parts.length ? parts.join(' ') : '–';
+}
 
-  if (colName < 0) {
-    report.innerHTML = validationLine('❌', '', tr('Keine Namens-Spalte in der Originaldatei erkannt — Validierung nicht möglich. Bitte prüfen, ob die richtige Datei/das richtige Arbeitsblatt geladen wurde.',
-      'No name column detected in the original file — validation not possible. Please check whether the correct file/worksheet was loaded.'));
+function runValidation(ctx) {
+  const report = document.getElementById('validation-report');
+  const headers = ctx.headers, dataRows = ctx.dataRows, fileName = ctx.fileName || '';
+  const mapping = {};
+  TARGET_FIELDS.forEach(f => { mapping[f.key] = guessColumn(headers, f.keywords); });
+  let html = '';
+  if (mapping.name < 0) {
+    report.innerHTML = validationLine('❌', '', tr('Keine Namens-Spalte in der Quelldatei erkannt — Validierung nicht möglich. Bitte prüfen, ob die richtige Datei/das richtige Arbeitsblatt geladen wurde.',
+      'No name column detected in the source file — validation not possible. Please check whether the correct file/worksheet was loaded.'));
     return;
   }
 
-  // Build the source data (exclude templates/SRM placeholders as on import)
-  const excl = findExclusionColumns(headers);
-  const sourceMap = new Map();
-  let skippedTemplates = 0;
-  dataRows.forEach(row => {
-    if (excl.template >= 0 && isTruthyFlag(row[excl.template])) { skippedTemplates++; return; }
-    if (excl.srmPlaceholder >= 0 && isTruthyFlag(row[excl.srmPlaceholder])) { skippedTemplates++; return; }
-    const name = (row[colName] || '').toString().trim();
-    if (!name) return;
-    let sizeGiB = '';
-    if (colSize >= 0) {
-      const raw = parseFloat((row[colSize] || '').toString().replace(',', '.'));
-      if (!isNaN(raw)) sizeGiB = Math.round((raw / 1024) * 10) / 10;
-    }
-    sourceMap.set(name.toLowerCase(), {
-      name: name, sizeGiB: sizeGiB,
-      os: colOs >= 0 ? (row[colOs] || '').toString().trim() : '',
-      location: colLoc >= 0 ? (row[colLoc] || '').toString().trim() : ''
-    });
+  // (1) Same pipeline and the same filter settings as the import: skipped rows are reported, never "missing"
+  const exclTemplates = document.getElementById('excl-templates').checked;
+  const exclStructural = document.getElementById('excl-structural').checked;
+  const exclReplicas = document.getElementById('excl-replicas').checked;
+  const sizeFactor = mapping.size >= 0 ? detectSizeFactor(headers[mapping.size]) : 1;
+  const classified = classifyImportRows(dataRows, headers, mapping, {
+    exclTemplates: exclTemplates, excl: findExclusionColumns(headers), exclStructural: exclStructural, exclReplicas: exclReplicas, sizeFactor: sizeFactor
   });
+  const sourceMap = new Map();
+  classified.parsed.forEach(p => { if (!sourceMap.has(p.name.toLowerCase())) sourceMap.set(p.name.toLowerCase(), p); });
+  const sk = classified.skip;
+  const skippedParts = [];
+  if (sk.template) skippedParts.push(sk.template + tr(' Template(s)/SRM-Platzhalter', ' template(s)/SRM placeholder(s)'));
+  if (sk.system) skippedParts.push(sk.system + tr(' vSphere-System-VM(s)', ' vSphere system VM(s)'));
+  const structural = sk.header + sk.subtotal + sk.section;
+  if (structural) skippedParts.push(structural + tr(' Struktur-Zeile(n)', ' structural row(s)'));
+  if (sk.replica) skippedParts.push(sk.replica + tr(' Replica(s)', ' replica(s)'));
 
+  // (3) Source-aware scope: compare against the workloads that came from THIS file. Legacy states without
+  //     sources (or a renamed file) fall back to the whole list — and say so.
   const items = collectState.items;
+  const scoped = items.filter(it => itemSources(it).includes(fileName));
+  const scopeAll = scoped.length === 0;
+  const scopeItems = scopeAll ? items : scoped;
   const itemsByName = new Map();
   items.forEach(it => { if (it.name.trim()) itemsByName.set(it.name.trim().toLowerCase(), it); });
 
-  html += validationLine('ℹ', 'finding--info', tr('Abgleich: ', 'Comparison: ') + sourceMap.size + tr(' Workloads in der Originaldatei (', ' workloads in the original file (') +
-    skippedTemplates + tr(' Template(s)/SRM-Placeholder ausgeschlossen) gegen ', ' template(s)/SRM placeholder(s) excluded) against ') + items.length + tr(' Workloads in der aktuellen Liste. Verglichene Felder: Name', ' workloads in the current list. Compared fields: name') +
-    (colSize >= 0 ? tr(', Größe', ', size') : '') + (colOs >= 0 ? ', OS' : '') + (colLoc >= 0 ? tr(', Standort/Cluster', ', location/cluster') : '') + '.');
+  html += '<div class="graph-note" style="margin-bottom:8px;"><strong>' + tr('Quellen in der Liste: ', 'Sources in the list: ') + '</strong>' + coverageHtml(items) +
+    (validatedSources.size ? '<br>' + tr('✅ = mit dieser Quelldatei geprüft, ohne Abweichung · ⚠ = geprüft, mit Abweichungen', '✅ = validated against its file without deviations · ⚠ = validated, with deviations') : '') + '</div>';
 
-  // 1) in the source but not in the list
-  const missing = [...sourceMap.values()].filter(s => !itemsByName.has(s.name.toLowerCase()));
+  html += validationLine('ℹ', 'finding--info', tr('Abgleich „', 'Comparison "') + escapeHtml(fileName) + tr('": ', '": ') + sourceMap.size + tr(' Workloads in der Quelldatei', ' workloads in the source file') +
+    (skippedParts.length ? tr(' (wie beim Import übersprungen: ', ' (skipped as on import: ') + skippedParts.join(', ') + ')' : '') +
+    (scopeAll
+      ? tr(' gegen die gesamte Liste (' + items.length + ') — kein Workload trägt diese Datei als Quelle (älterer Stand oder umbenannte Datei).', ' against the whole list (' + items.length + ') — no workload carries this file as its source (older state or renamed file).')
+      : tr(' gegen ' + scopeItems.length + ' Workloads aus dieser Quelle.', ' against ' + scopeItems.length + ' workloads from this source.')) +
+    tr(' Verglichene Felder: Name', ' Compared fields: name') + (mapping.size >= 0 ? tr(', Größe', ', size') : '') + (mapping.os >= 0 ? ', OS' : '') + (mapping.location >= 0 ? tr(', Standort/Cluster', ', location/cluster') : '') + '.');
+
+  // (2) Missing: in the source but not in the list — deliberately deleted ones are info, the rest a warning
+  const tombNames = new Set((typeof deletedTombstones !== 'undefined' ? deletedTombstones : []).map(t => t.name.toLowerCase()));
+  const missingAll = [...sourceMap.values()].filter(s => !itemsByName.has(s.name.toLowerCase()));
+  const missingDeleted = missingAll.filter(s => tombNames.has(s.name.toLowerCase()));
+  const missing = missingAll.filter(s => !tombNames.has(s.name.toLowerCase()));
+  let warnings = 0;
+  if (missingDeleted.length) {
+    html += validationLine('ℹ', 'finding--info', missingDeleted.length + tr(' Workload(s) der Quelldatei wurden in der Liste bewusst gelöscht: ', ' workload(s) from the source file were deliberately deleted from the list: ') + escapeHtml(missingDeleted.map(s => s.name).join(', ')));
+  }
   if (missing.length) {
-    html += validationLine('⚠', '', '<strong>' + missing.length + tr(' Workload(s) aus der Originaldatei fehlen in der Liste:</strong> ', ' workload(s) from the original file are missing in the list:</strong> ') +
-      escapeHtml(missing.map(s => s.name).join(', ')));
+    warnings++;
+    html += validationLine('⚠', '', '<strong>' + missing.length + tr(' Workload(s) aus der Quelldatei fehlen in der Liste:</strong> ', ' workload(s) from the source file are missing in the list:</strong> ') +
+      escapeHtml(missing.map(s => s.name).join(', ')) +
+      ' <button class="btn-ghost" id="btn-validation-import-missing" style="margin-left:8px;">⬇ ' + tr('Fehlende nachimportieren', 'Import missing workloads') + '</button>');
   } else {
-    html += validationLine('✅', 'finding--ok', tr('Alle Workloads der Originaldatei sind in der Liste vorhanden.', 'All workloads from the original file are present in the list.'));
+    html += validationLine('✅', 'finding--ok', tr('Alle Workloads der Quelldatei sind in der Liste vorhanden', 'All workloads from the source file are present in the list') + (missingDeleted.length ? tr(' (bis auf die bewusst gelöschten).', ' (except the deliberately deleted ones).') : '.'));
   }
 
-  // 2) in the list but not in the source (manually added ones are expected → info only)
-  const extra = items.filter(it => it.name.trim() && !sourceMap.has(it.name.trim().toLowerCase()));
-  const extraManual = extra.filter(it => (it.note || '').includes('manuell erfasst'));
-  const extraOther = extra.filter(it => !(it.note || '').includes('manuell erfasst'));
+  // Extra: in scope but not in the source — renamed or changed by accident (manual rows are info)
+  const extra = scopeItems.filter(it => it.name.trim() && !sourceMap.has(it.name.trim().toLowerCase()));
+  const extraManual = extra.filter(it => (it.note || '').includes('manuell erfasst') || !itemSources(it).length);
+  const extraOther = extra.filter(it => !extraManual.includes(it));
   if (extraOther.length) {
-    html += validationLine('⚠', '', '<strong>' + extraOther.length + tr(' Workload(s) in der Liste kommen in der Originaldatei nicht vor:</strong> ', ' workload(s) in the list do not appear in the original file:</strong> ') +
+    warnings++;
+    html += validationLine('⚠', '', '<strong>' + extraOther.length + tr(' Workload(s) mit dieser Quelle kommen in der Quelldatei nicht vor:</strong> ', ' workload(s) with this source do not appear in the source file:</strong> ') +
       escapeHtml(extraOther.map(it => it.name).join(', ')) + tr(' — prüfen, ob umbenannt oder versehentlich verändert.', ' — check whether renamed or changed accidentally.'));
   }
-  if (extraManual.length) {
-    html += validationLine('ℹ', 'finding--info', extraManual.length + tr(' manuell erfasste(r) Workload(s) (erwartungsgemäß nicht in der Originaldatei): ', ' manually added workload(s) (expectedly not in the original file): ') +
-      escapeHtml(extraManual.map(it => it.name).join(', ')));
+  if (extraManual.length && scopeAll) {
+    html += validationLine('ℹ', 'finding--info', extraManual.length + tr(' manuell erfasste(r) Workload(s) (erwartungsgemäß nicht in der Quelldatei): ', ' manually added workload(s) (expectedly not in the source file): ') + escapeHtml(extraManual.map(it => it.name).join(', ')));
   }
-  if (!extra.length) {
-    html += validationLine('✅', 'finding--ok', tr('Keine Workloads in der Liste, die nicht auch in der Originaldatei stehen.', 'No workloads in the list that are not also in the original file.'));
+  if (!extraOther.length) {
+    html += validationLine('✅', 'finding--ok', scopeAll
+      ? tr('Keine unerklärten Workloads in der Liste, die nicht auch in der Quelldatei stehen.', 'No unexplained workloads in the list that are not also in the source file.')
+      : tr('Alle Workloads aus dieser Quelle stehen auch in der Quelldatei.', 'All workloads from this source are also in the source file.'));
   }
 
-  // 3) field comparison per workload (only where both sides have a value)
+  // Field comparison per workload (only where both sides have a value); the size unit follows the column name
   const mismatches = [];
-  items.forEach(it => {
+  scopeItems.forEach(it => {
     const src = sourceMap.get(it.name.trim().toLowerCase());
     if (!src) return;
-    if (colSize >= 0 && src.sizeGiB !== '' && it.sizeGiB !== '' && it.sizeGiB !== undefined &&
-        Math.abs(parseFloat(it.sizeGiB) - src.sizeGiB) > 0.15) {
+    if (mapping.size >= 0 && src.sizeGiB !== '' && it.sizeGiB !== '' && it.sizeGiB !== undefined && Math.abs(parseFloat(it.sizeGiB) - src.sizeGiB) > 0.15) {
       mismatches.push(escapeHtml(it.name) + tr(': Größe ', ': size ') + it.sizeGiB + tr(' GiB in der Liste vs. ', ' GiB in the list vs. ') + src.sizeGiB + tr(' GiB in der Quelle', ' GiB in the source'));
     }
-    if (colOs >= 0 && src.os && (it.os || '').trim() && it.os.trim().toLowerCase() !== src.os.toLowerCase()) {
+    if (mapping.os >= 0 && src.os && (it.os || '').trim() && it.os.trim().toLowerCase() !== src.os.toLowerCase()) {
       mismatches.push(escapeHtml(it.name) + ': OS "' + escapeHtml(it.os) + '" vs. "' + escapeHtml(src.os) + '"');
     }
-    if (colLoc >= 0 && src.location && (it.location || '').trim() && it.location.trim().toLowerCase() !== src.location.toLowerCase()) {
+    if (mapping.location >= 0 && src.location && (it.location || '').trim() && it.location.trim().toLowerCase() !== src.location.toLowerCase()) {
       mismatches.push(escapeHtml(it.name) + tr(': Standort/Cluster "', ': location/cluster "') + escapeHtml(it.location) + '" vs. "' + escapeHtml(src.location) + '"');
     }
   });
   if (mismatches.length) {
-    html += validationLine('⚠', '', '<strong>' + mismatches.length + tr(' Feld-Abweichung(en) gegenüber der Originaldatei:</strong><br>', ' field deviation(s) from the original file:</strong><br>') + mismatches.join('<br>'));
+    warnings++;
+    html += validationLine('⚠', '', '<strong>' + mismatches.length + tr(' Feld-Abweichung(en) gegenüber der Quelldatei:</strong><br>', ' field deviation(s) from the source file:</strong><br>') + mismatches.join('<br>'));
   } else {
-    html += validationLine('✅', 'finding--ok', tr('Keine Feld-Abweichungen (Größe/OS/Standort) zwischen Liste und Originaldatei.', 'No field deviations (size/OS/location) between list and original file.'));
+    html += validationLine('✅', 'finding--ok', tr('Keine Feld-Abweichungen (Größe/OS/Standort) zwischen Liste und Quelldatei.', 'No field deviations (size/OS/location) between list and source file.'));
   }
 
-  // 4) internal consistency check (independent of the source file)
+  // Internal consistency check (independent of the source file, always over the whole list)
   const nameCounts = {};
   items.forEach(it => { const k = it.name.trim().toLowerCase(); if (k) nameCounts[k] = (nameCounts[k] || 0) + 1; });
   const dupes = Object.keys(nameCounts).filter(k => nameCounts[k] > 1);
-  if (dupes.length) html += validationLine('⚠', '', '<strong>' + tr('Doppelte Workload-Namen in der Liste:', 'Duplicate workload names in the list:') + '</strong> ' + escapeHtml(dupes.join(', ')) + tr(' — Abhängigkeiten über Namen sind dann nicht mehr eindeutig.', ' — name-based dependencies are then no longer unambiguous.'));
+  if (dupes.length) { warnings++; html += validationLine('⚠', '', '<strong>' + tr('Doppelte Workload-Namen in der Liste:', 'Duplicate workload names in the list:') + '</strong> ' + escapeHtml(dupes.join(', ')) + tr(' — Abhängigkeiten über Namen sind dann nicht mehr eindeutig.', ' — name-based dependencies are then no longer unambiguous.')); }
   const unnamed = items.filter(it => !it.name.trim());
-  if (unnamed.length) html += validationLine('⚠', '', unnamed.length + tr(' Zeile(n) ohne Workload-Namen (z. B. manuell hinzugefügt und noch nicht benannt): #', ' row(s) without a workload name (e.g. added manually and not yet named): #') + unnamed.map(it => it.id).join(', #'));
+  if (unnamed.length) { warnings++; html += validationLine('⚠', '', unnamed.length + tr(' Zeile(n) ohne Workload-Namen (z. B. manuell hinzugefügt und noch nicht benannt): #', ' row(s) without a workload name (e.g. added manually and not yet named): #') + unnamed.map(it => it.id).join(', #')); }
   const valNameIdx = buildNameIndex();
   const withBrokenDeps = items.filter(it => resolveDepsText(it.depsText, it.id, valNameIdx).unresolved.length > 0);
-  if (withBrokenDeps.length) html += validationLine('⚠', '', '<strong>' + tr('Nicht auflösbare Abhängigkeits-Einträge bei:', 'Unresolvable dependency entries at:') + '</strong> ' + escapeHtml(withBrokenDeps.map(it => it.name || ('#' + it.id)).join(', ')));
+  if (withBrokenDeps.length) { warnings++; html += validationLine('⚠', '', '<strong>' + tr('Nicht auflösbare Abhängigkeits-Einträge bei:', 'Unresolvable dependency entries at:') + '</strong> ' + escapeHtml(withBrokenDeps.map(it => it.name || ('#' + it.id)).join(', '))); }
   if (!dupes.length && !unnamed.length && !withBrokenDeps.length) {
     html += validationLine('✅', 'finding--ok', tr('Interner Konsistenz-Check bestanden: keine doppelten/leeren Namen, alle Abhängigkeiten auflösbar.', 'Internal consistency check passed: no duplicate/empty names, all dependencies resolvable.'));
   }
 
+  // Coverage bookkeeping for this session (several files can be validated one after another)
+  validatedSources.set(fileName, { ok: warnings === 0, missing: missing.length, extra: extraOther.length, mismatches: mismatches.length, at: new Date() });
+
   report.innerHTML = html;
+  // Re-render the coverage line with the fresh validation state
+  const cov = report.querySelector('.graph-note');
+  if (cov) cov.innerHTML = '<strong>' + tr('Quellen in der Liste: ', 'Sources in the list: ') + '</strong>' + coverageHtml(items) +
+    '<br>' + tr('✅ = mit dieser Quelldatei geprüft, ohne Abweichung · ⚠ = geprüft, mit Abweichungen', '✅ = validated against its file without deviations · ⚠ = validated, with deviations');
+  // (5) Reconcile: import the missing workloads through the normal path (duplicate dialog logic, tombstones cleared)
+  const btn = document.getElementById('btn-validation-import-missing');
+  if (btn) btn.addEventListener('click', () => {
+    commitImport(missing.map(s => Object.assign({}, s)), 'skip', 0, fileName, sizeFactor);
+    if (lastValidation) runValidation(lastValidation);
+  });
   if (typeof i18nApply === 'function') i18nApply(report);
 }
 </script>
@@ -5622,7 +5715,7 @@ const STATIC_I18N = {
   "Anwenden": "Apply",
   "Foundational": "Foundational", "Out of Scope": "Out of scope", "Override": "Override",
   "4. Validierung gegen die Originaldatei": "4. Validation against the original file",
-  "Unabhängiger Gegencheck vor der Abgabe: die ursprüngliche Quelldatei (RVTools-Export, vCenter-/CMDB-Liste) erneut hochladen. Das Tool vergleicht sie mit der aktuellen Liste oben und meldet fehlende oder zusätzliche Workloads sowie abweichende Größen-, OS- und Cluster-Angaben pro Workload — so fällt sofort auf, falls beim Import oder Bearbeiten etwas durcheinandergeraten ist. Zusätzlich läuft ein interner Konsistenz-Check (doppelte/leere Namen, nicht auflösbare Abhängigkeiten).": "Independent cross-check before delivery: upload the original source file (RVTools export, vCenter/CMDB list) again. The tool compares it against the current list above and reports missing or extra workloads as well as deviating size, OS and cluster values per workload — so it is immediately visible if anything got mixed up during import or editing. An internal consistency check (duplicate/empty names, unresolvable dependencies) runs as well.",
+  "Unabhängiger Gegencheck vor der Abgabe: eine Quelldatei (RVTools-Export, Veeam-ONE-Report, CMDB-Liste) erneut hochladen. Sie wird wie beim Import gelesen (gleiche Blatt-/Kopfzeilen-Erkennung, gleiche Filter) und nur mit den Workloads verglichen, die aus dieser Datei stammen — weitere Quellen werden als Abdeckung ausgewiesen, nicht als Abweichung. Gemeldet werden fehlende oder zusätzliche Workloads sowie abweichende Größen-, OS- und Cluster-Angaben; bewusst gelöschte Workloads und vom Import ausgeschlossene Zeilen erscheinen als Hinweis. Fehlende lassen sich per Klick nachimportieren. Zusätzlich läuft ein interner Konsistenz-Check (doppelte/leere Namen, nicht auflösbare Abhängigkeiten).": "Independent cross-check before delivery: upload a source file (RVTools export, Veeam ONE report, CMDB list) again. It is read exactly like on import (same sheet/header detection, same filters) and compared only with the workloads that came from this file — other sources are shown as coverage, not as deviations. Reported are missing or extra workloads as well as deviating size, OS and cluster values; deliberately deleted workloads and rows skipped by the import filters appear as notes. Missing workloads can be imported with one click. An internal consistency check (duplicate/empty names, unresolvable dependencies) runs as well.",
   "📄 Originaldatei hierher ziehen oder klicken (.xlsx, .csv)": "📄 Drag original file here or click (.xlsx, .csv)",
   "⚙ Optionen: Klassifizierungsregeln (Namen, Ziel-RPO/RTO & Schwellenwerte anpassen)": "⚙ Options: classification rules (adjust names, target RPO/RTO & thresholds)",
   "Diese Werte gelten für die automatische Berechnung unten und lassen sich frei an kundenspezifische Vorgaben anpassen. Unabhängig davon kann bei jedem einzelnen Workload die Schutzklasse manuell überschrieben werden (Spalte \"Override\" in der Tabelle unten). Der \"Anzeigename\" ist rein kosmetisch für diese Sitzung/diesen Export — der interne Schlüssel (und damit Rang/Reihenfolge sowie das, was beim erneuten Hochladen in Tab ② erkannt wird) bleibt unverändert.": "These values drive the automatic calculation below and can be adapted freely to customer-specific requirements. Independently, the protection class of each individual workload can be overridden manually (\"Override\" column in the table below). The \"display name\" is purely cosmetic for this session/export — the internal key (and thus rank/order and what is recognized when re-uploading in tab ②) remains unchanged.",

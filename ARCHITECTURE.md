@@ -30,7 +30,7 @@ blocks at runtime (event handlers, renders), which is why a few places guard wit
 | 11 | Tab 1 assessment table | `renderCollectTable()`, `resolveDepsText()`, `deleteItems()` |
 | 12 | Persistence | `snapshotState()`, `restoreState()`, `sanitizeProgressData()`, `confirmVersionCompat()` |
 | 13 | Excel export model, tab bridge | `buildWorkloadRegisterSheet()`, `exportPlainXlsx()`, `buildViewItemsFromCollect()` |
-| 14 | Validation against the source file | `runValidation()` |
+| 14 | Validation against the source file (same pipeline as the import, source-aware, tombstones) | `handleValidateFile()`, `runValidation()` |
 | 15 | Tab 3 runbook planning | `computeRunbookStructure()`, `renderRunbookTab()` |
 | 17 | Formatted Excel export | `exportViaTemplate()` |
 | 18 | Prequalification assistant | `defaultPrequalRules()`, `prequalDetect()`, `prequalOpenWizard()` |
@@ -69,7 +69,8 @@ re-import of files that customers already have:
 
 - Tier keys: `Tier 0 – Foundation` … `Tier 4 – Bronze` (with an en dash, U+2013)
 - `OUT_OF_SCOPE_CLASS = "Out of Scope – kein Backup"`
-- Item field names: `istRpo`, `istRto`, `clsOverride`, `depsText`, `foundational` (`'Ja'`/`'Nein'`), …
+- Item field names: `istRpo`, `istRto`, `clsOverride`, `depsText`, `foundational` (`'Ja'`/`'Nein'`), `source`, …
+- Progress-file sections: `items`, `classDefs`, `scoreThresholds`, `tierLabels`, `runbook*`, `prequalRules`, `prequalEnv`, `deletedTombstones`
 - Export sheet names (Instructions, Class-Matrix, Workload-Register, Dashboard, Runbook-Plan) and the
   first 18 columns (A–R) of the Workload-Register sheet; new columns are appended only.
 

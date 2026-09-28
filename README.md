@@ -3,7 +3,7 @@
 **Classify customer workloads into DR protection classes (Tier 0–4), capture the dependencies that form a service, and derive Veeam Recovery Orchestrator runbook groups — in one offline HTML file.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-![Version](https://img.shields.io/badge/version-v0.14.2--beta-blue.svg)
+![Version](https://img.shields.io/badge/version-v0.15.0--beta-blue.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-informational.svg)
 
 > **Community project — not an official Veeam product.** This tool is a working aid created by a Veeam
@@ -73,6 +73,8 @@ always starts first, and warnings when protection classes are mixed inside a gro
 guidance on how foundation systems are handled in a DR event versus in a DataLab test.
 
 ![Runbook groups with foundation block and mixed-class warning](docs/screenshots/runbooks.png)
+
+**Validation.** Before hand-over, upload a source file again: it is read exactly like on import and compared only with the workloads that came from it — missing or extra workloads and deviating size/OS/cluster values are reported, deliberately deleted workloads and filtered rows appear as notes, and missing ones can be imported with one click.
 
 **Export.** A formatted Excel workbook (Instructions, Class-Matrix, Workload-Register, Dashboard,
 Runbook-Plan) that round-trips back into the tool, plus a progress file (JSON) for resuming later.

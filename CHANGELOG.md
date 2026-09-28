@@ -8,6 +8,24 @@ All notable changes to this project are documented here.
 - Backlog (next): bulk-edit "Depends on" for a selection, editable Excel re-import into tab ①,
   recovery-plan type per runbook group
 
+## [2026-09-28] — v0.15.0-beta
+Validation against the source file rebuilt for multi-source assessments.
+
+- The source file is read through the same pipeline as the import (CSV encoding sniff, best sheet,
+  header-row detection, the three import filters with their current settings, size unit from the
+  column name). Rows the import skips — templates, SRM placeholders, vSphere system VMs, structural
+  rows, replicas — are reported as skipped, never as missing
+- Source-aware comparison: a file is compared only against the workloads that carry it as their
+  source (`item.source`); workloads from other sources are listed as coverage, not as extras. Several
+  files can be validated one after another; the coverage line marks each validated source. States
+  without source information fall back to the whole list and say so
+- Deleted workloads are remembered (name, source, time) and reported as "deliberately deleted"
+  instead of "missing"; undo or re-import clears the marker. The markers are saved with the progress
+  file and type-checked on load
+- Severities: skipped and deleted are notes, truly missing or extra workloads and field deviations
+  are warnings; a "Import missing workloads" button adds the missing ones through the normal import
+  path
+
 ## [2026-09-28] — v0.14.2-beta
 Import filter for vSphere system VMs and a readability pass over the source. No change to the
 assessment logic.
