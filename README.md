@@ -148,6 +148,12 @@ Chart.js (MIT), D3.js (ISC), fflate (MIT).
 ## Author
 
 Klaus Wittenberg, Technical Account Management (Professional Services), Veeam Software.
-Built with the assistance of Anthropic Claude; the tool itself contains no AI functionality.
+
+### How this was built
+
+The idea and the methodology come from DR concept workshops with customers. The design was worked out in
+dialogue with Claude (Anthropic), Claude wrote the code, and every round was tested in real workshops
+before it went in. The tool itself contains no AI functionality and never calls any service — see
+[Data and privacy](#data-and-privacy).
 
 <!-- TODO before publishing: acknowledgements (community reviewers) — with their consent -->
