@@ -3,7 +3,7 @@
 **Classify customer workloads into DR protection classes (Tier 0–4), capture the dependencies that form a service, and derive Veeam Recovery Orchestrator runbook groups — in one offline HTML file.**
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
-![Version](https://img.shields.io/badge/version-v0.16.0--beta-blue.svg)
+![Version](https://img.shields.io/badge/version-v0.16.1--beta-blue.svg)
 ![Runs offline](https://img.shields.io/badge/runs-100%25%20offline-informational.svg)
 
 > **Community project — not an official Veeam product.** This tool is a working aid created by a Veeam
@@ -66,6 +66,8 @@ circular dependencies, RPO/RTO gaps. Print view for a PDF hand-out.
 ![Dependency network with findings](docs/screenshots/network.png)
 
 ![KPIs and distribution by protection class](docs/screenshots/overview.png)
+
+![Workload register with class, target RPO/RTO, depends on and required by](docs/screenshots/register.png)
 
 **Tab ③ Runbook planning (VRO).** Dependency-connected groups as orchestration-plan candidates with
 a topological start order, editable group names, a service owner per group, a foundation block that

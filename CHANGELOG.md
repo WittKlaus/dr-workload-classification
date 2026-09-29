@@ -8,6 +8,17 @@ All notable changes to this project are documented here.
 - Backlog (next): bulk-edit "Depends on" for a selection, editable Excel re-import into tab ①,
   recovery-plan type per runbook group
 
+## [2026-09-29] — v0.16.1-beta
+Compact status bar for small screens; fix for the language of the "manual" badge.
+
+- Fix: the "manual" badge shown next to a manually overridden protection class followed the UI language only
+  after the next language switch (the live row update wrote the German text). It now follows the current
+  language immediately, as does the tooltip of the "auto" badge
+- Shorter texts in the status bar: the repository link reads "GitHub" (full address in the tooltip and set from
+  the single `REPO_URL` constant), the feedback button is "Feedback" (explanation in the tooltip), the disclaimer
+  is one short line and is hidden below 900 px window width — it stays in the About dialog and the welcome modal.
+  The bar fits one line from about 900 px (previously it wrapped on ordinary laptop displays)
+
 ## [2026-09-28] — v0.16.0-beta
 One tier palette for everyone, bulk edit for dependencies, a readable dependency network, and validation results that stay reachable.
 

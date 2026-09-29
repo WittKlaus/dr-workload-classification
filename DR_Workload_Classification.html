@@ -157,10 +157,13 @@ html,body { margin:0; padding:0; font-family:var(--font-sans); color:var(--vm-in
 /* Status bar: permanently visible short disclaimer + ownership at the bottom edge of the window */
 .statusbar {
   position:fixed; left:0; right:0; bottom:0; z-index:50;
-  display:flex; align-items:center; gap:18px; flex-wrap:wrap;
-  padding:7px 24px; background:var(--vm-grey-100); border-top:1.5px solid var(--vm-grey-200);
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  padding:6px 16px; background:var(--vm-grey-100); border-top:1.5px solid var(--vm-grey-200);
   font:400 11.5px/16px var(--font-sans); color:var(--vm-slate);
 }
+.statusbar > span { white-space:nowrap; }
+/* v0.16.1: compact status bar — on narrow windows the disclaimer stays in the About dialog / welcome modal */
+@media (max-width: 900px) { .statusbar .statusbar__disclaimer { display:none; } }
 .statusbar strong { color:var(--vm-ink-2); }
 .statusbar .statusbar__beta {
   font:700 9px/12px var(--font-sans); letter-spacing:.08em; padding:1px 7px; border-radius:99999px;
@@ -882,9 +885,9 @@ details.options-panel[open] summary::before { content:"▼ "; }
 
 <div class="statusbar">
   <span><strong>DR Workload Classification</strong> <span id="statusbar-version" class="about-version"></span> <span class="statusbar__beta">BETA</span></span>
-  <span>Owner: Klaus Wittenberg · <a href="https://github.com/WittKlaus/dr-workload-classification" target="_blank" rel="noopener" style="color:inherit;">github.com/WittKlaus/dr-workload-classification</a></span>
-  <span>Kein offizielles Veeam-Produkt — Ergebnisse ohne Gewähr.</span>
-  <button class="btn-about" id="btn-report-issue" style="margin-left:auto;">⚑ Problem melden / Feedback (GitHub)</button>
+  <span>Owner: Klaus Wittenberg · <a id="statusbar-repo" href="https://github.com/WittKlaus/dr-workload-classification" target="_blank" rel="noopener" style="color:inherit;" title="https://github.com/WittKlaus/dr-workload-classification">GitHub</a></span>
+  <span class="statusbar__disclaimer">Kein offizielles Veeam-Produkt · ohne Gewähr</span>
+  <button class="btn-about" id="btn-report-issue" style="margin-left:auto;" title="Problem melden / Feedback als GitHub-Issue (öffnet den Browser, nichts wird automatisch gesendet)">⚑ Feedback</button>
   <button class="btn-about" data-about-open>ⓘ About</button>
 </div>
 
@@ -1043,7 +1046,7 @@ details.options-panel[open] summary::before { content:"▼ "; }
 // Public version label (SemVer, beta phase = 0.x). Embedded in the status bar, About, progress JSON
 // and Excel export, so feedback always states which build is affected. Feature rounds bump the middle
 // number (0.10.0), pure fixes the last one.
-const TOOL_VERSION = 'v0.16.0-beta';
+const TOOL_VERSION = 'v0.16.1-beta';
 // Public repository (v0.14.1): source of releases, issues and the feedback channel. Links only, never data retrieval.
 const REPO_URL = 'https://github.com/WittKlaus/dr-workload-classification';
 // Release notes inside the tool (v0.13.0): key points per version only, newest entry first.
@@ -1051,7 +1054,11 @@ const REPO_URL = 'https://github.com/WittKlaus/dr-workload-classification';
 // release the most important points are copied here (push procedure). Shown in About ("What's new
 // & history") and in the welcome modal (newest entry only).
 const CHANGELOG = [
-  { v: TOOL_VERSION, date: '2026-09-28', notes: [ // newest entry = current version (the literal lives only in TOOL_VERSION)
+  { v: TOOL_VERSION, date: '2026-09-29', notes: [ // newest entry = current version (the literal lives only in TOOL_VERSION)
+    "Fix: the \"manual\" badge on a class override in the table now follows the UI language immediately (it stayed German until the next language switch)",
+    "Status bar fits small screens: shorter texts, the repository link reads \"GitHub\" (full address in the tooltip), the feedback button is just \"Feedback\", and the bar no longer wraps onto two lines on a laptop display"
+  ]},
+  { v: 'v0.16.0-beta', date: '2026-09-28', notes: [
     "One tier palette for everyone: the Okabe-Ito colours (formerly the colorblind option) are now the only palette, in light and dark mode — Foundation and Silver are no longer confusable, the colorblind switch is gone; weaker-dependency edges in the network are vermilion",
     "Bulk edit: \"Depends on\" can be set for all selected rows — add, replace or remove names; IDs are resolved to names exactly like in the table, unresolvable entries stop the action before anything changes",
     "Dependency network: arrowheads are larger, darker and end at the node's edge, so the direction (arrow = depends on) is readable; hovering a workload highlights what it depends on (solid) and what requires it (dashed) and fades the rest",
@@ -1487,7 +1494,7 @@ function renderTable(items) {
     html += '<tr><td>' + it.id + '</td><td>' + escapeHtml(it.name) + '</td><td>' + escapeHtml(it.owner) +
       '</td><td>' + escapeHtml(it.responsible || '–') +
       '</td><td><span class="badge"><span class="badge-dot" style="background:' + tierColor(it.cls) + '"></span>' + escapeHtml(tierLabel(it.cls)) + '</span>' +
-      (it.manualOverride ? ' <span class="badge badge-manual">manuell</span>' : '') + '</td><td>' +
+      (it.manualOverride ? ' <span class="badge badge-manual">' + tr('manuell', 'manual') + '</span>' : '') + '</td><td>' +
       escapeHtml(it.rpo) + '</td><td>' + escapeHtml(it.rto) + '</td><td>' + escapeHtml(depsStr) + '</td><td>' + escapeHtml(dependentsStr) + '</td></tr>';
   });
   html += '</tbody>';
@@ -3096,8 +3103,8 @@ function renderCollectTable() {
       '<td><select class="collect-input collect-select" data-field="ds">' + scaleOptions.replace('value="' + it.ds + '"', 'value="' + it.ds + '" selected') + '</select></td>' +
       '<td><select class="collect-input collect-select" data-field="rk">' + scaleOptions.replace('value="' + it.rk + '"', 'value="' + it.rk + '" selected') + '</select></td>' +
       '<td class="collect-cls-cell' + (isManual ? ' is-manual' : '') + '" data-role="cls-cell" style="color:' + tierColor(cls) + '">' +
-        escapeHtml(cls ? tierLabel(cls) : '–') + (isManual ? ' <span class="badge badge-manual">manuell</span>' : '') +
-        (it.autoProposed && !it.validated ? ' <span class="badge badge-auto" title="Auto-Vorschlag — bis zur Kundenvalidierung markiert">auto</span>' : '') + '</td>' +
+        escapeHtml(cls ? tierLabel(cls) : '–') + (isManual ? ' <span class="badge badge-manual">' + tr('manuell', 'manual') + '</span>' : '') +
+        (it.autoProposed && !it.validated ? ' <span class="badge badge-auto" title="' + tr('Auto-Vorschlag — bis zur Kundenvalidierung markiert', 'Auto proposal — marked until customer validation') + '">auto</span>' : '') + '</td>' +
       '<td><select class="collect-input override-select" data-field="clsOverride">' + overrideOptions.replace('value="' + it.clsOverride + '"', 'value="' + it.clsOverride + '" selected') + '</select></td>' +
       '<td style="text-align:center;"><input type="checkbox" data-field="validated" ' + (it.validated ? 'checked' : '') + '></td>' +
       '<td><input class="collect-input' + (gaps.rpoGap ? ' is-gap' : '') + '" data-field="istRpo" type="number" step="0.25" min="0" value="' + escapeHtml(isBlankNum(it.istRpo) ? '' : it.istRpo) + '" style="width:80px;"' + (gaps.rpoGap ? ' title="Ist-RPO überschreitet das Klassen-Ziel (' + escapeHtml(CLASS_DEFS[cls].rpoH) + ' h)"' : '') + '></td>' +
@@ -3198,9 +3205,9 @@ document.getElementById('pager-size').addEventListener('change', (e) => {
 });
 
 document.getElementById('collect-table').addEventListener('input', (e) => {
-  const tr = e.target.closest('tr');
-  if (!tr) return;
-  const id = parseInt(tr.getAttribute('data-id'), 10);
+  const rowEl = e.target.closest('tr');
+  if (!rowEl) return;
+  const id = parseInt(rowEl.getAttribute('data-id'), 10);
   const item = collectState.items.find(it => it.id === id);
   if (!item) return;
   const field = e.target.getAttribute('data-field');
@@ -3230,17 +3237,17 @@ document.getElementById('collect-table').addEventListener('input', (e) => {
   const calculatedCls = classifyScore(computeScore(item.bi, item.reg, item.ds), item.foundational);
   const cls = item.outOfScope ? OUT_OF_SCOPE_CLASS : (item.clsOverride || calculatedCls);
   const isManual = !item.outOfScope && !!item.clsOverride && item.clsOverride !== calculatedCls;
-  const clsCell = tr.querySelector('[data-role="cls-cell"]');
+  const clsCell = rowEl.querySelector('[data-role="cls-cell"]');
   clsCell.classList.toggle('is-manual', isManual);
   clsCell.style.color = tierColor(cls);
-  clsCell.innerHTML = escapeHtml(cls ? tierLabel(cls) : '–') + (isManual ? ' <span class="badge badge-manual">manuell</span>' : '') +
-    (item.autoProposed && !item.validated ? ' <span class="badge badge-auto" title="Auto-Vorschlag — bis zur Kundenvalidierung markiert">auto</span>' : '');
+  clsCell.innerHTML = escapeHtml(cls ? tierLabel(cls) : '–') + (isManual ? ' <span class="badge badge-manual">' + tr('manuell', 'manual') + '</span>' : '') +
+    (item.autoProposed && !item.validated ? ' <span class="badge badge-auto" title="' + tr('Auto-Vorschlag — bis zur Kundenvalidierung markiert', 'Auto proposal — marked until customer validation') + '">auto</span>' : '');
   if (typeof updatePrequalQuotaNote === 'function') updatePrequalQuotaNote();
 
   // Refresh the gap markers of the actual-value fields live (even if the class changed)
   const gaps = gapCheck(cls, item.istRpo, item.istRto);
-  const rpoInp = tr.querySelector('[data-field="istRpo"]');
-  const rtoInp = tr.querySelector('[data-field="istRto"]');
+  const rpoInp = rowEl.querySelector('[data-field="istRpo"]');
+  const rtoInp = rowEl.querySelector('[data-field="istRto"]');
   if (rpoInp) {
     rpoInp.classList.toggle('is-gap', gaps.rpoGap);
     rpoInp.title = gaps.rpoGap ? 'Ist-RPO überschreitet das Klassen-Ziel (' + CLASS_DEFS[cls].rpoH + ' h)' : '';
@@ -5692,6 +5699,8 @@ const STATIC_I18N = {
   "Sprache umschalten / Switch language": "Switch language / Sprache umschalten",
   "Kein offizielles Veeam-Produkt — Arbeitsmittel in Entwicklung und Erprobung. Ergebnisse ohne Gewähr, vor Verwendung gemeinsam validieren.": "Not an official Veeam product — working aid under development and evaluation. Results without warranty; validate jointly before use.",
   "Kein offizielles Veeam-Produkt — Ergebnisse ohne Gewähr.": "Not an official Veeam product — results without warranty.",
+  "Kein offizielles Veeam-Produkt · ohne Gewähr": "Not an official Veeam product · no warranty",
+  "Problem melden / Feedback als GitHub-Issue (öffnet den Browser, nichts wird automatisch gesendet)": "Report an issue / feedback as a GitHub issue (opens the browser, nothing is sent automatically)",
   "✕ Schließen": "✕ Close",
   "Zweck": "Purpose",
   "Hilfestellung zur Klassifizierung von Workloads in DR-Schutzklassen (Tier 0–4) mit Ziel-RPO/RTO, zur Erfassung der Abhängigkeiten, die einen Service bilden, und als Grundlage für Veeam-Recovery-Orchestrator-Runbooks.": "Guidance for classifying workloads into DR protection classes (Tier 0–4) with target RPO/RTO, for capturing the dependencies that form a service, and as a foundation for Veeam Recovery Orchestrator runbooks.",
@@ -5729,7 +5738,7 @@ const STATIC_I18N = {
   "Feedback / Problem melden (GitHub)": "Feedback / report issue (GitHub)",
   "About & Disclaimer": "About & disclaimer",
   "Neu starten (alles zurücksetzen)": "Start over (reset everything)",
-  "⚑ Problem melden / Feedback (GitHub)": "⚑ Report issue / feedback (GitHub)",
+  "⚑ Feedback": "⚑ Feedback",
   "Bevor es losgeht": "Before you begin",
   "Dieses Werkzeug ist ein Community-Projekt eines Veeam Technical Account Managers, in aktiver Entwicklung — kein offizielles Veeam-Produkt, nicht von Veeam R&D erstellt, nicht durch den Veeam Support abgedeckt. Ergebnisse sind eine strukturierte Diskussionsgrundlage und werden gemeinsam mit dem Kunden validiert — ohne Gewähr.": "This tool is a community project by a Veeam Technical Account Manager, under active development — not an official Veeam product, not created by Veeam R&D, not covered by Veeam Support. Results are a structured basis for discussion and are validated together with the customer — without warranty.",
   "Alles läuft zu 100 % lokal in diesem Browser: kein Server, keine Telemetrie, keine KI zur Laufzeit. Ihre Daten verlassen den Rechner nicht.": "Everything runs 100% locally in this browser: no server, no telemetry, no AI at runtime. Your data never leaves this machine.",
@@ -6009,6 +6018,7 @@ document.getElementById('btn-lang-toggle').addEventListener('click', () => {
 
 // ---------------- About-Dialog + Versionsanzeige ----------------
 document.getElementById('statusbar-version').textContent = TOOL_VERSION;
+document.getElementById('statusbar-repo').href = REPO_URL; document.getElementById('statusbar-repo').title = REPO_URL;
 document.getElementById('about-version').textContent = TOOL_VERSION;
 // Release notes (v0.13.0): About shows the whole history (newest entry open), the welcome modal
 // only the newest entry. Contents are data (English), hence no tr().
