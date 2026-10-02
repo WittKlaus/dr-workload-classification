@@ -1,0 +1,25 @@
+# Verifies on every push and pull request that dist/DR_Workload_Classification.html is exactly the
+# build output of the readable sources in src/ and vendor/ — the file people download is the file
+# they can review.
+name: Build check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Syntax check of the application sources
+        run: for f in src/app/*.js; do node --check "$f"; done
+      - name: dist/ must equal the build output of the sources
+        run: node tools/build.mjs --check

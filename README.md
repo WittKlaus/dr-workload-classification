@@ -23,7 +23,7 @@ later.
 
 ## Quick start
 
-1. Download `DR_Workload_Classification.html` (from the latest [release](../../releases) or this repository).
+1. Download `DR_Workload_Classification.html` from the latest [release](../../releases) (or from `dist/` in this repository).
 2. Open it in a current browser (Chrome, Edge, Firefox). No installation, no internet.
 3. Drop an RVTools export onto tab ① — try `Examples/RVTools/RVTools_export_TESTDATA_210_VMs.xlsx`.
 4. Rate the workloads, enter dependencies, look at tab ② and ③, export to Excel.
@@ -108,7 +108,10 @@ you load are treated as untrusted input and type-checked. Details in [SECURITY.m
 
 | Path | Content |
 |---|---|
-| `DR_Workload_Classification.html` | The tool. One file, ~1.9 MB, bilingual EN/DE (English default) |
+| `dist/DR_Workload_Classification.html` | The tool. One file, ~1.9 MB, bilingual EN/DE (English default). Generated — do not edit |
+| `src/` | The application source: page shell with the markup (`index.html`), `styles.css`, and the JavaScript in 16 files in load order (`app/`) |
+| `vendor/` | The four embedded libraries, unmodified, with version, license and checksum ([vendor/README.md](vendor/README.md)) |
+| `tools/build.mjs` | Builds `dist/` from `src/`, `vendor/` and the export template. Node, no dependencies |
 | `Examples/RVTools/` | Synthetic RVTools exports with 210 / 2,000 / 5,000 VMs |
 | `Examples/VeeamONE/` | Anonymized real Veeam ONE *VMs Configuration* reports (vSphere, Hyper-V) and a synthetic report |
 | `Examples/CMDB_CSV/` | Synthetic ServiceNow-style and German semicolon CSV lists |
@@ -118,6 +121,21 @@ you load are treated as untrusted input and type-checked. Details in [SECURITY.m
 | `CHANGELOG.md` | Release history; the current release is also shown in the tool's About dialog |
 | `ARCHITECTURE.md` | Structure of the single file: script blocks, data flow, stable keys, how to verify a change |
 | `docs/screenshots/` | The screenshots used in this README |
+
+## Source code and build
+
+The tool ships as one HTML file so that it runs offline from a USB stick, but it is developed as ordinary
+source files. What you download is assembled from them by a short script without dependencies:
+
+```
+node tools/build.mjs           # writes dist/DR_Workload_Classification.html
+node tools/build.mjs --check   # verifies that dist/ is exactly the build output of the sources
+```
+
+The build only concatenates files and base64-encodes the Excel export template; it does not minify or
+transform the application code. A GitHub Action runs the check on every push, and the file attached to a
+release is built by GitHub from the tagged sources. The application code is in `src/app/`; everything in
+`vendor/` is third-party.
 
 ## Limits
 
@@ -143,7 +161,7 @@ is the map of the source file. Field feedback on the methodology is as valuable 
 ## License
 
 MIT — see [LICENSE](LICENSE). Embedded libraries: SheetJS Community Edition (Apache-2.0),
-Chart.js (MIT), D3.js (ISC), fflate (MIT).
+Chart.js (MIT), D3.js (ISC), fflate (MIT); their license texts are in [vendor/licenses/](vendor/licenses/).
 
 ## Author
 

@@ -16,21 +16,24 @@ Please keep that in mind when waiting for a reply.
 
 ## Working on the code
 
-Start with [ARCHITECTURE.md](ARCHITECTURE.md): it maps the script blocks, the data flow and the stable
-keys. The tool is a single HTML file by design. The offline promise means it must run from a USB stick in
+Start with [ARCHITECTURE.md](ARCHITECTURE.md): it maps the source files, the data flow and the stable
+keys. The tool ships as a single HTML file by design. The offline promise means it must run from a USB stick in
 a customer meeting room. Please keep it that way:
 
+- Edit the sources in `src/`, never `dist/` directly. Run `node tools/build.mjs` and commit the sources
+  together with the rebuilt `dist/DR_Workload_Classification.html`; CI fails if they do not match.
+
 - No external resources at runtime, no network calls, no telemetry.
-- Libraries are embedded. An update replaces the corresponding `<script>` block and is noted in
-  the changelog with version and reason.
+- Libraries live unmodified in `vendor/`. An update replaces the file there, updates
+  [vendor/README.md](vendor/README.md) and is noted in the changelog with version and reason.
 - Internal keys are stable and must not be renamed: the tier keys (`Tier 0 – Foundation` to
   `Tier 4 – Bronze`, with an en dash), `Out of Scope – kein Backup`, the export sheet names, and
   the first 18 columns of the Workload-Register export schema. New columns are appended.
 - New UI text goes into both languages: `tr(de, en)` for dynamic text, the `STATIC_I18N`
   dictionary for static HTML.
 - New state must be added to `snapshotState`, `restoreState` **and** `sanitizeProgressData`.
-- Before opening a pull request, run a syntax check over every `<script>` block with
-  `node --check` and load the file in a browser with the examples in `Examples/`.
+- Before opening a pull request, run `node --check` on the files in `src/app/`, build, and load
+  `dist/DR_Workload_Classification.html` in a browser with the examples in `Examples/`.
 
 ## Pull requests
 

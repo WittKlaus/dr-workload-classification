@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<title>DR Workload Classification</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath fill='none' stroke='%2300D15F' stroke-width='18' stroke-linecap='round' stroke-linejoin='round' d='M12 56 Q28 76 40 80 Q47 81 54 70 L88 18'/%3E%3C/svg%3E">
+<!--
+  SOURCE MAP — DR Workload Classification (single-file tool, ~5,700 lines, runs 100 % offline)
+  Script blocks in load order (top-level code of a block runs when it is parsed; later blocks are
+  referenced only at runtime, hence the typeof guards):
+     1–3  Embedded libraries: SheetJS 0.20.3 (Apache-2.0), Chart.js 4.4.0 (MIT), D3 7.8.5 (ISC)
+     4    Core: language helper, version & release notes (CHANGELOG), tier model, scoring, view-only Excel import
+     5    Tab 2 view: KPIs, chart, register table, escapeHtml()
+     6    Tab 2 findings & recommendations
+     7    Tab 2 dependency network (D3 force graph)
+     8    Tab switching, auto-sync bookkeeping
+     9    Tab 1 options panel (thresholds, targets, display names)
+    10    Tab 1 import: detection, mapping, classifyImportRows()
+    11    Tab 1 assessment table: filters, columns, editing, bulk edit, delete
+    12    Persistence: autosave, progress file, sanitizing, version guard
+    13    Excel export data model (plain fallback), tab 1 → tab 2 bridge
+    14    Tab 1 validation against the source file
+    15    Tab 3 runbook planning (VRO groups)
+    16    Embedded library: fflate 0.8.2 (MIT)
+    17    Formatted Excel export (embedded template + XML patch)
+    18    Prequalification assistant (rules, wizard, catalog)
+    19    Settings & UX shell (theme, feedback, error banner, welcome)
+    20    Internationalization (STATIC_I18N) & About wiring
+  Conventions:
+    · UI is bilingual: tr(de, en) for dynamic text, STATIC_I18N for static HTML (key = exact German text).
+    · Everything that is DATA is English: export file/sheet names, note markers, catalog labels, release notes.
+    · Some identifiers and stored field names are German (istRpo, clsOverride, "Tier 0 – Foundation", …).
+      They are part of the progress-file schema and the Excel schema and must never be renamed.
+    · Files loaded by the user are untrusted input: see sanitizeProgressData() and classifyImportRows().
+  Documentation for contributors: ARCHITECTURE.md in the repository.
+-->
+<script>
+/* @include vendor/xlsx.full.min.js */</script>
+<script>
+/*! Chart.js v4.4.0 | (c) Chart.js contributors | MIT License | https://www.chartjs.org */
+/* @include vendor/chart.umd.min.js */
+</script>
+<script>
+/* @include vendor/d3.min.js */
+</script>
+<style>
+/* @include src/styles.css */</style>
+</head>
+<body>
+<div class="topbar">
+  <span class="topbar__logo" aria-hidden="true"><svg viewBox="0 0 100 100" width="36" height="36" role="img"><rect x="4" y="4" width="92" height="92" rx="22" fill="rgba(255,255,255,.18)" stroke="rgba(255,255,255,.6)" stroke-width="4"/><path fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round" d="M22 56 Q34 72 42 76 Q47 77 52 68 L78 26"/></svg></span>
+  <div class="topbar__title">DR Workload Classification</div>
+  <span style="font:700 10px/14px var(--font-sans); letter-spacing:.08em; padding:2px 8px; border-radius:99999px; background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.5);">BETA</span>
+  <div class="topbar__spacer"></div>
+  <button id="btn-lang-toggle" style="font:700 12px/16px var(--font-sans); padding:4px 12px; border-radius:99999px; background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.5); color:#fff; cursor:pointer;" title="Sprache umschalten / Switch language">DE | EN</button>
+  <span class="opts-menu-wrap">
+    <button id="btn-opts-menu" style="font:700 12px/16px var(--font-sans); padding:4px 12px; border-radius:99999px; background:rgba(255,255,255,.22); border:1px solid rgba(255,255,255,.5); color:#fff; cursor:pointer;" title="Optionen">⚙</button>
+    <div class="opts-menu" id="opts-menu">
+      <button id="opt-dark">🌙 <span>Dark Mode</span><span class="opts-state" id="opt-dark-state"></span></button>
+      <div class="opts-sep"></div>
+      <button id="opt-feedback">⚑ <span>Feedback / Problem melden (GitHub)</span></button>
+      <button id="opt-welcome">👋 <span>„Bevor es losgeht“ anzeigen</span></button>
+      <button data-about-open>ⓘ <span>About &amp; Disclaimer</span></button>
+      <div class="opts-sep"></div>
+      <button id="btn-reset-all" title="Alles zurücksetzen — verwirft den aktuellen Stand (inkl. Auto-Speicherung) und startet einen neuen Import">↺ <span>Neu starten (alles zurücksetzen)</span></button>
+    </div>
+  </span>
+  <div class="topbar__note">Community-Projekt · Disaster Recovery Konzept &amp; Planung</div>
+</div>
+
+<div class="wrap">
+
+  <!-- The former beta banner moved into the "Before you begin" modal (once per browser/version);
+       the full disclaimer remains in About (options menu + status bar). -->
+  <!-- Global error catcher (v0.12.1): unhandled runtime errors become visible instead of failing silently -->
+  <div class="banner banner--error hidden" id="runtime-error-banner" role="alert">
+    <span id="runtime-error-text"></span>
+    <button class="btn-ghost" id="btn-runtime-error-report">✉ Fehler melden</button>
+    <button class="btn-ghost" id="btn-runtime-error-close">Ausblenden</button>
+  </div>
+
+  <div class="tabs-nav">
+    <button class="tab-btn is-active" data-tab="tab-collect">① Neue Erhebung (RVTools/vCenter-Import)</button>
+    <button class="tab-btn" data-tab="tab-view">② Klassifizierung ansehen</button>
+    <button class="tab-btn" data-tab="tab-runbook">③ Runbook-Planung (VRO)</button>
+  </div>
+
+  <div id="tab-view" class="tab-panel hidden">
+
+    <div class="card" id="upload-card">
+      <div class="card__title">Workload-Klassifizierung hochladen</div>
+      <div class="card__subtitle">Die ausgefüllte DR_Workload_Klassifizierungstool.xlsx hochladen — oder eine
+        Fortschrittsdatei (.json) aus einer früheren Erhebung; die Daten stehen dann direkt hier und in Tab ①
+        zum Weiterbearbeiten bereit. Die Verarbeitung erfolgt ausschließlich lokal im Browser — es werden
+        keine Daten irgendwohin übertragen.</div>
+      <div class="upload-zone" id="drop-zone">
+        <div id="drop-label">📄 Datei hierher ziehen oder klicken zum Auswählen (.xlsx oder Fortschrittsdatei .json)</div>
+        <input type="file" id="file-input" accept=".xlsx,.json">
+      </div>
+      <div class="privacy-note">Verarbeitung erfolgt vollständig im Browser (JavaScript, SheetJS). Kein Server-Upload,
+        keine Übertragung von Kundendaten.</div>
+      <div id="parse-error" class="finding hidden" style="border-left-color:var(--veeam-red); background:rgba(237,43,61,.06); margin-top:14px;"></div>
+    </div>
+
+    <div id="results" class="hidden">
+
+      <div id="view-source-note" class="banner hidden" style="font-size:13px;"></div>
+      <div class="graph-toolbar" style="justify-content:flex-end;">
+        <button class="btn-ghost" id="btn-print-view" title="Erzeugt über den Browser-Druckdialog ein PDF der kompletten Auswertung (ohne Bedienelemente).">🖨 Als PDF drucken</button>
+      </div>
+      <div class="kpi-grid" id="kpi-grid"></div>
+      <div class="disclaimer-note">Hinweis: "Tier" bezieht sich hier auf Workload-Schutzklassen und hat nichts mit
+        der Uptime-Institute-Tier-Klassifizierung (Tier I–IV) für physische Rechenzentrums-Infrastruktur zu tun.</div>
+
+      <div class="card" style="margin-top:20px;">
+        <div class="card__title">Verteilung nach Schutzklasse</div>
+        <canvas id="dist-chart" height="90"></canvas>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Abhängigkeitsnetz</div>
+        <div class="card__subtitle">Pfeile zeigen "hängt ab von". Orange Kanten = Abhängigkeit ist schwächer
+          klassifiziert als das abhängige System (RTO-Risiko). Knoten ziehbar, Mausrad zum Zoomen.
+          Foundational-Systeme (Tier 0: AD/DNS/DC …) sind standardmäßig ausgeblendet, da sie mit fast allem
+          verbunden sind und die App-zu-App-Sicht überdecken — über den Tier-0-Chip unten zuschaltbar.</div>
+
+        <div class="graph-toolbar">
+          <input type="text" id="graph-search" class="graph-search" placeholder="🔍 Workload suchen …">
+          <label class="toggle-inline"><input type="checkbox" id="toggle-isolated" checked> Isolierte Knoten ausblenden</label>
+          <label class="toggle-inline"><input type="checkbox" id="toggle-issues-only"> Nur Auffälligkeiten anzeigen</label>
+          <select id="graph-animate-mode" class="colfilter-select" title="Automatisch: bis 600 Knoten animiert, darüber einmal statisch berechnet. Erzwungene Animation kann bei großen Netzen träge werden.">
+            <option value="auto">Layout: automatisch</option>
+            <option value="on">Layout: animiert</option>
+            <option value="off">Layout: statisch</option>
+          </select>
+          <span class="graph-note" id="graph-layout-note"></span>
+          <button class="btn-ghost" id="btn-fit">🔎 Ansicht anpassen</button>
+          <button class="btn-ghost" id="btn-reset">↺ Filter zurücksetzen</button>
+        </div>
+        <div class="graph-toolbar" id="tier-chips"></div>
+        <div class="banner hidden" id="graph-breaker-note" style="font-size:13px;"></div>
+
+        <svg id="graph-svg"></svg>
+        <div class="legend" id="graph-legend"></div>
+        <div class="graph-note" id="graph-stats"></div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Befunde</div>
+        <div class="card__subtitle">Bewusst akzeptierte Befunde bleiben sichtbar (abgeblendet, mit Häkchen) statt zu
+          verschwinden — so geht nichts unter, das im Workshop schon besprochen wurde.</div>
+        <div class="graph-toolbar"><button class="btn-ghost" id="btn-reset-ack">↺ Alle Bestätigungen zurücksetzen</button></div>
+        <div id="findings"></div>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Weiteres Vorgehen</div>
+        <ol class="reco-list" id="reco-list"></ol>
+      </div>
+
+      <div class="card">
+        <div class="card__title">Workload-Register (Rohdaten)</div>
+        <div class="graph-toolbar" id="view-pager" style="justify-content:space-between; align-items:center;">
+          <span class="graph-note" id="view-pager-info"></span>
+          <span style="display:flex; gap:8px; align-items:center;">
+            <label class="toggle-inline">Zeilen pro Seite
+              <select id="view-pager-size" class="colfilter-select">
+                <option>100</option><option selected>250</option><option>500</option><option>1000</option>
+                <option value="all">Alle</option>
+              </select>
+            </label>
+            <button class="btn-ghost" id="view-pager-prev">←</button>
+            <span class="graph-note" id="view-pager-pos"></span>
+            <button class="btn-ghost" id="view-pager-next">→</button>
+          </span>
+        </div>
+        <div class="view-table-scroll"><table class="dr-table no-wrap-th" id="data-table"></table></div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div id="tab-collect" class="tab-panel">
+
+    <div class="banner hidden" id="autosave-banner">
+      <span id="autosave-banner-text"></span>
+      <button class="btn-ghost" id="btn-restore-autosave">Wiederherstellen</button>
+      <button class="btn-ghost" id="btn-discard-autosave">Verwerfen</button>
+    </div>
+
+    <details class="card options-panel" id="options-panel">
+      <summary>⚙ Optionen: Klassifizierungsregeln (Namen, Ziel-RPO/RTO &amp; Schwellenwerte anpassen)</summary>
+      <div class="card__subtitle" style="margin-top:10px;">Diese Werte gelten für die automatische Berechnung
+        unten und lassen sich frei an kundenspezifische Vorgaben anpassen. Unabhängig davon kann bei jedem
+        einzelnen Workload die Schutzklasse manuell überschrieben werden (Spalte "Override" in der Tabelle unten).
+        Der "Anzeigename" ist rein kosmetisch für diese Sitzung/diesen Export — der interne Schlüssel (und damit
+        Rang/Reihenfolge sowie das, was beim erneuten Hochladen in Tab ② erkannt wird) bleibt unverändert.</div>
+      <div id="options-formula" class="graph-note" style="background:var(--vm-grey-100); border-radius:var(--radius-md); padding:9px 13px; margin:0 0 10px; line-height:20px;"></div>
+      <details style="margin:0 0 12px;">
+        <summary style="cursor:pointer; font:600 12.5px/18px var(--font-sans); color:var(--veeam-blue-royal); list-style:none;">❓ Woher kommt dieses Berechnungsmodell?</summary>
+        <div class="graph-note" style="margin-top:8px; max-width:1100px;">Die gewichtete Multi-Kriterien-Bewertung
+          (Business Impact 45 % / Regulatorik 35 % / Datensensitivität 20 %) folgt etablierter BIA-Praxis.
+          Rahmenwerke wie ISO 22301/22317, BSI-Standard 200-4, NIST SP 800-34 oder die BCI Good Practice
+          Guidelines fordern Auswirkungskriterien und Kritikalitätsklassen mit RTO/RPO-Zielen, geben aber
+          bewusst keine Formel, Gewichte oder Schwellenwerte vor — auch DORA und NIS2 nicht. Die Vorgaben hier
+          sind daher eine Kalibrierung als Startpunkt: Bei einheitlicher Bewertung x/x/x ergibt der Score exakt
+          x, die Schwellen liegen an den natürlichen Mittelpunkten (2,5 und 3,5); nur die Platinum-Grenze ist
+          auf 4,3 abgesenkt, damit starke Profile mit überwiegend Fünfen (z. B. 5/4/4 = 4,45) Platinum
+          erreichen, eine glatte 4/4/4 aber Gold bleibt. Recovery-Komplexität fließt bewusst nicht in den Score
+          ein (Aufwand ist nicht Kritikalität). Wichtig: Dieses Modell ist eine Hilfestellung für den Workshop,
+          kein vorgegebener Standard — die verbindliche Eichung von Gewichten, Schwellen und Zielen gehört dem
+          Kunden und sollte dokumentiert werden.</div>
+      </details>
+      <div class="table-wrap"><table class="dr-table" id="options-table"></table></div>
+      <div class="graph-toolbar" style="margin-top:10px;">
+        <button class="btn-ghost" id="btn-reset-options">↺ Auf Standardwerte zurücksetzen</button>
+      </div>
+    </details>
+
+    <details class="card options-panel" id="prequal-catalog-panel">
+      <summary>🪄 Optionen: Vorqualifizierungs-Katalog (Erkennungsmuster &amp; Vorschlagswerte anpassen)</summary>
+      <div class="card__subtitle" style="margin-top:10px;">Regelkatalog des Assistenten "Automatisch
+        vorklassifizieren": Erkennungsmuster (kommagetrennte Schlüsselwörter, Treffer an Wortgrenzen im
+        Workload-Namen; OS/Standort/Notiz dienen als Zweitsignal für die Konfidenz) und die
+        Vorschlagswerte je Kategorie. Die Werte sind destillierte Felderfahrung — kein Standard, keine
+        Telemetrie — und sollten je Kunde geprüft werden. RK ist wie überall im Tool eine reine
+        Aufwands-Dokumentation und fließt nie in die Schutzklassen-Berechnung ein. Vorschläge werden
+        grundsätzlich nur in leere Bewertungsfelder übernommen und bleiben bis zur Kundenvalidierung
+        als "auto" markiert.</div>
+      <div class="graph-toolbar" style="margin-bottom:8px;">
+        <label class="toggle-inline">Nicht-Prod-Muster (senken BI −2, Reg −1):
+          <input type="text" id="prequal-env-nonprod" style="min-width:280px;"></label>
+        <label class="toggle-inline">Prod-Muster (heben nur die Konfidenz):
+          <input type="text" id="prequal-env-prod" style="min-width:140px;"></label>
+      </div>
+      <div class="table-wrap"><table class="dr-table" id="prequal-catalog-table"></table></div>
+      <div class="graph-toolbar" style="margin-top:10px;">
+        <button class="btn-ghost" id="btn-add-prequal-rule">＋ Eigene Kategorie hinzufügen</button>
+        <button class="btn-ghost" id="btn-reset-prequal-catalog">↺ Auf Standardkatalog zurücksetzen</button>
+        <span class="graph-note" id="prequal-catalog-note"></span>
+      </div>
+    </details>
+
+    <div class="card">
+      <div class="card__title">1. Rohliste importieren</div>
+      <div class="card__subtitle">Getestet mit RVTools-Exporten ("vInfo"-Blatt) und Veeam ONE (Report
+        "VMs Configuration" — für vSphere UND Hyper-V, als Excel exportiert; Deckblatt und Titelblock werden
+        automatisch erkannt. Der Veeam-ONE-Report "Inventory" ist ein Property-Listen-Format und als Quelle
+        ungeeignet). Weitere Quellen über die generische Spaltenzuordnung: CMDB-/ServiceNow-Listen und CSV.
+        Mehrere Quellen nacheinander importieren ist möglich — neue Workloads werden ergänzt, bei
+        Namensgleichheit fragt ein Duplikat-Dialog nach. Alternativ Daten direkt einfügen. Spalten werden
+        automatisch erkannt; die Zuordnung kann im nächsten Schritt geprüft und korrigiert werden.</div>
+      <div class="import-mode-toggle">
+        <button class="btn-ghost is-active" id="btn-import-mode-file">📄 Datei hochladen</button>
+        <button class="btn-ghost" id="btn-import-mode-paste">📋 Text/CSV einfügen</button>
+        <button class="btn-ghost" id="btn-start-manual">✏ Ohne Import starten (manuell erfassen)</button>
+        <label class="btn-ghost" style="cursor:pointer;">📂 Fortschritt (JSON) laden<input type="file" id="load-progress-input-early" accept=".json" style="display:none;"></label>
+      </div>
+      <div id="import-mode-file">
+        <div class="upload-zone" id="raw-drop-zone">
+          <div id="raw-drop-label">📄 Rohdaten-Export hierher ziehen oder klicken (.xlsx, .csv)</div>
+          <input type="file" id="raw-file-input" accept=".xlsx,.csv">
+        </div>
+        <div id="sheet-picker-wrap" class="hidden" style="margin-top:12px;">
+          <label class="mapping-field"><label>Arbeitsblatt</label><select id="sheet-picker" class="collect-input"></select></label>
+        </div>
+      </div>
+      <div id="import-mode-paste" class="hidden">
+        <textarea class="paste-textarea" id="paste-textarea" placeholder="Erste Zeile = Spaltenüberschriften. Tab- oder komma-getrennt, z. B. aus Excel kopiert."></textarea>
+        <div class="graph-toolbar" style="margin-top:10px;">
+          <button class="btn" id="btn-parse-paste">Einlesen →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card hidden" id="mapping-card">
+      <div class="card__title">2. Spalten zuordnen</div>
+      <div class="card__subtitle">Automatisch vorgeschlagen, bitte prüfen. "Workload-Name" ist Pflicht, alle
+        anderen Felder optional. Die Größen-Einheit wird am Spaltennamen erkannt (MiB/MB und TB/TiB werden
+        nach GiB umgerechnet, GB/GiB bleiben unverändert).</div>
+      <div class="graph-toolbar" style="margin-bottom:8px;">
+        <label class="toggle-inline">Kopfzeile ist Zeile
+          <select id="header-row-picker" class="colfilter-select" style="max-width:340px;"></select>
+        </label>
+        <span class="graph-note" id="header-row-note"></span>
+      </div>
+      <div class="mapping-grid" id="mapping-fields"></div>
+      <label class="toggle-inline" style="display:block; margin-bottom:6px;">
+        <input type="checkbox" id="excl-templates" checked>
+        Templates, SRM-Platzhalter &amp; vSphere-System-VMs (vCLS, Supervisor Control Plane) ausschließen (empfohlen — das sind keine echten, zu schützenden Workloads)
+      </label>
+      <label class="toggle-inline" style="display:block; margin-bottom:6px;">
+        <input type="checkbox" id="excl-structural" checked>
+        Struktur-Zeilen überspringen (wiederholte Kopfzeilen, Cluster-/Host-Zwischensummen, Abschnittsköpfe wie „vCenter Server:“ — typisch für Veeam-ONE-Reports) und Cluster/Host als Standort an die folgenden Zeilen vererben
+      </label>
+      <label class="toggle-inline" style="display:block; margin-bottom:10px;">
+        <input type="checkbox" id="excl-replicas" checked>
+        Replicas ausschließen (Namen mit Veeam-Suffix „_replica“ — DR-Kopien, keine zu klassifizierenden Workloads)
+      </label>
+      <button class="btn" id="btn-apply-mapping">Workloads übernehmen →</button>
+      <button class="btn" id="btn-apply-mapping-auto" title="Übernimmt die Workloads und öffnet danach den Assistenten, der per Mustererkennung Bewertungs-Vorschläge macht — nichts wird ohne Bestätigung gesetzt">🪄 Übernehmen + automatisch vorklassifizieren</button>
+      <span class="graph-note" id="mapping-count-note"></span>
+      <div class="banner hidden" id="dup-dialog" style="margin-top:12px; display:block;">
+        <div id="dup-dialog-text" style="margin-bottom:8px;"></div>
+        <label class="toggle-inline" style="display:block; margin:3px 0;"><input type="radio" name="dup-strategy" value="skip" checked>
+          Duplikate überspringen — nur wirklich neue Workloads übernehmen (empfohlen)</label>
+        <label class="toggle-inline" style="display:block; margin:3px 0;"><input type="radio" name="dup-strategy" value="fill">
+          Leere Felder der vorhandenen Workloads aus der neuen Quelle ergänzen (Bewertungen bleiben unberührt)</label>
+        <label class="toggle-inline" style="display:block; margin:3px 0;"><input type="radio" name="dup-strategy" value="add">
+          Trotzdem zusätzlich anlegen — Achtung: doppelte Namen brechen die Abhängigkeits-Auflösung</label>
+        <div class="graph-toolbar" style="margin-top:8px;">
+          <button class="btn" id="btn-dup-continue">Weiter →</button>
+          <button class="btn-ghost" id="btn-dup-cancel">Abbrechen</button>
+        </div>
+      </div>
+      <div class="banner hidden" id="foundational-suggest" style="margin-top:12px;">
+        <span id="foundational-suggest-text"></span>
+        <button class="btn-ghost" id="btn-foundational-accept">Als Foundational übernehmen</button>
+        <button class="btn-ghost" id="btn-foundational-dismiss">Verwerfen</button>
+      </div>
+    </div>
+
+    <div class="card hidden" id="collect-toolbar-card">
+      <div class="card__title">3. Klassifizieren &amp; Abhängigkeiten festlegen</div>
+      <div class="card__subtitle">Für jeden Workload die drei Bewertungskriterien (1–5) setzen — Schutzklasse und
+        Ziel-RPO/RTO werden live berechnet. Recovery-Komplexität (RK) ist eine separate Aufwandseinschätzung und
+        beeinflusst die Schutzklasse nicht. Abhängigkeiten als Workload-Namen eintragen, kommagetrennt
+        (Autovervollständigung mit Tab/Pfeiltasten).</div>
+      <div class="graph-toolbar">
+        <button class="btn" id="btn-save-progress">💾 Fortschritt speichern</button>
+        <label class="btn-ghost" style="cursor:pointer;">📂 Fortschritt laden<input type="file" id="load-progress-input" accept=".json" style="display:none;"></label>
+        <button class="btn-ghost" id="btn-add-row">＋ Workload manuell hinzufügen</button>
+        <button class="btn-ghost" id="btn-export-xlsx">⬇ Als Excel exportieren</button>
+        <button class="btn-ghost" id="btn-view-in-graph">🕸 Im Abhängigkeitsnetz ansehen</button>
+        <button class="btn-ghost" id="btn-prequal-wizard" title="Regelbasierte Bewertungs-Vorschläge per Mustererkennung — nichts wird ohne Bestätigung gesetzt">🪄 Automatisch vorklassifizieren</button>
+        <span class="graph-note" id="autosave-note"></span>
+        <span class="graph-note" id="prequal-quota-note" style="font-weight:600;"></span>
+      </div>
+      <details class="section-panel" id="filter-panel" open>
+        <summary>Filter</summary>
+        <div class="graph-toolbar">
+          <input type="text" id="collect-search" class="graph-search" placeholder="🔍 Name/Owner/OS suchen …">
+          <div id="collect-tier-chips" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+          <label class="toggle-inline"><input type="checkbox" id="toggle-unvalidated-only"> Nur unvalidiert</label>
+          <button class="btn-ghost" id="btn-collect-filter-reset">↺ Filter zurücksetzen</button>
+        </div>
+        <div class="graph-toolbar" id="collect-col-filters"></div>
+      </details>
+      <details class="section-panel" id="columns-panel">
+        <summary>Spalten</summary>
+        <div class="graph-note" style="margin-bottom:8px;">Nicht benötigte Spalten ausblenden — eine Geräte-Einstellung wie Dark Mode, nicht Teil der Fortschrittsdatei. #, Name und Schutzklasse bleiben immer sichtbar.</div>
+        <div class="graph-toolbar" id="collect-col-picker"></div>
+      </details>
+      <details class="section-panel" id="bulk-panel">
+        <summary>Mehrfachauswahl — <span id="bulk-selected-count">0</span> <span>Zeile(n) ausgewählt</span></summary>
+        <div class="graph-note" style="margin-bottom:8px;">Zeilen über die Checkbox links auswählen (Kopfzeile = alle sichtbaren), dann die gewünschten Änderungen auf alle ausgewählten anwenden. "–" bzw. "– nicht ändern –" lässt das jeweilige Feld unangetastet.</div>
+        <div class="bulk-toolbar">
+          <label>BI <select id="bulk-bi"><option value="">–</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option value="__clear__">✕ leeren</option></select></label>
+          <label>Reg <select id="bulk-reg"><option value="">–</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option value="__clear__">✕ leeren</option></select></label>
+          <label>DS <select id="bulk-ds"><option value="">–</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option value="__clear__">✕ leeren</option></select></label>
+          <label>RK <select id="bulk-rk"><option value="">–</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option value="__clear__">✕ leeren</option></select></label>
+          <label>Foundational <select id="bulk-foundational"><option value="">– nicht ändern –</option><option value="Ja">Ja setzen</option><option value="Nein">Nein setzen</option></select></label>
+          <label>Out of Scope <select id="bulk-outofscope"><option value="">– nicht ändern –</option><option value="Ja">Ja setzen</option><option value="Nein">Nein setzen</option></select></label>
+          <label>Override <select id="bulk-override"><option value="">– nicht ändern –</option></select></label>
+          <label>Abhängig von <select id="bulk-deps-mode"><option value="add">hinzufügen</option><option value="replace">ersetzen</option><option value="remove">entfernen</option></select><input type="text" id="bulk-deps" class="deps-input" list="workload-names-datalist" placeholder="– nicht ändern –" title="Namen oder IDs, kommagetrennt — IDs werden beim Verlassen des Felds zu Namen aufgelöst" style="width:210px;"></label>
+          <label>Team/Owner <input type="text" id="bulk-owner" placeholder="– nicht ändern –" style="width:130px;"></label>
+          <label>Responsible <input type="text" id="bulk-responsible" placeholder="– nicht ändern –" style="width:130px;"></label>
+          <label>E-Mail <input type="text" id="bulk-email" placeholder="– nicht ändern –" style="width:150px;"></label>
+          <button class="btn-ghost" id="btn-bulk-apply">Anwenden</button>
+          <button class="btn-ghost btn-danger" id="btn-bulk-delete" title="Löscht alle ausgewählten Zeilen nach Bestätigung — Abhängigkeitsverweise anderer Workloads werden bereinigt, die letzte Löschung ist rückgängig machbar">🗑 Ausgewählte löschen</button>
+        </div>
+        <div class="graph-note" id="delete-note" style="margin-top:8px;"></div>
+      </details>
+      <datalist id="workload-names-datalist"></datalist>
+      <div class="graph-toolbar" id="collect-pager" style="justify-content:space-between; align-items:center;">
+        <span class="graph-note" id="pager-info"></span>
+        <span style="display:flex; gap:8px; align-items:center;">
+          <label class="toggle-inline">Zeilen pro Seite
+            <select id="pager-size" class="colfilter-select">
+              <option>100</option><option selected>250</option><option>500</option><option>1000</option>
+              <option value="all">Alle</option>
+            </select>
+          </label>
+          <button class="btn-ghost" id="pager-prev">←</button>
+          <span class="graph-note" id="pager-pos"></span>
+          <button class="btn-ghost" id="pager-next">→</button>
+        </span>
+      </div>
+      <div class="collect-table-scroll"><table class="dr-table collect-table-fluid" id="collect-table"></table></div>
+    </div>
+
+    <div class="card hidden" id="validation-card">
+      <div class="card__title">4. Validierung gegen die Originaldatei</div>
+      <div class="card__subtitle">Unabhängiger Gegencheck vor der Abgabe: eine Quelldatei (RVTools-Export, Veeam-ONE-Report,
+        CMDB-Liste) erneut hochladen. Sie wird wie beim Import gelesen (gleiche Blatt-/Kopfzeilen-Erkennung, gleiche
+        Filter) und nur mit den Workloads verglichen, die aus dieser Datei stammen — weitere Quellen werden als
+        Abdeckung ausgewiesen, nicht als Abweichung. Gemeldet werden fehlende oder zusätzliche Workloads sowie
+        abweichende Größen-, OS- und Cluster-Angaben; bewusst gelöschte Workloads und vom Import ausgeschlossene
+        Zeilen erscheinen als Hinweis. Fehlende lassen sich per Klick nachimportieren. Zusätzlich läuft ein interner
+        Konsistenz-Check (doppelte/leere Namen, nicht auflösbare Abhängigkeiten).</div>
+      <div class="upload-zone" id="validate-drop-zone">
+        <div id="validate-drop-label">📄 Originaldatei hierher ziehen oder klicken (.xlsx, .csv)</div>
+        <input type="file" id="validate-file-input" accept=".xlsx,.csv">
+      </div>
+      <div id="validation-report" style="margin-top:14px;"></div>
+    </div>
+
+  </div>
+
+  <div id="tab-runbook" class="tab-panel hidden">
+
+    <div class="card">
+      <div class="card__title">Runbook-Gruppen (Vorschlag für Veeam Recovery Orchestrator)</div>
+      <div class="card__subtitle">Auf Basis der erfassten Abhängigkeiten werden zusammenhängende Systeme zu
+        Gruppen zusammengefasst — jede Gruppe ist ein Kandidat für einen eigenen VRO Orchestration Plan.
+        Die Startreihenfolge wird automatisch vorgeschlagen (wovon andere abhängen, startet zuerst) und lässt
+        sich pro System über das Nummern-Feld übersteuern. Foundational-Systeme (AD/DNS/DC, Tier 0) bilden
+        einen eigenen Block — im DR-Fall ein eigener Recovery Plan, der immer vor allen Service-Plänen startet.
+        Optional lassen sie sich zusätzlich in jeder Gruppe einblenden, wenn das Runbook-Dokument in sich
+        vollständig sein soll; für DataLab-Tests wird die Foundation stattdessen als Lab Group abgebildet
+        (siehe Hinweis am Foundation-Block).</div>
+      <div class="graph-toolbar">
+        <label class="toggle-inline"><input type="checkbox" id="runbook-include-foundational">
+          Foundational-Systeme (Tier 0: AD/DNS/DC …) in jeder Gruppe mit einblenden (für in sich vollständige Runbook-Dokumente — DataLab-Tests nutzen stattdessen Lab Groups)</label>
+        <button class="btn-ghost" id="btn-runbook-refresh">↺ Neu berechnen (manuelle Reihenfolgen verwerfen)</button>
+        <button class="btn-ghost hidden" id="btn-runbook-undo">↩ Letzte Gruppen-Zuweisung rückgängig</button>
+      </div>
+      <div id="runbook-groups"></div>
+      <div class="graph-note" id="runbook-note" style="margin-top:10px;"></div>
+    </div>
+
+    <details class="card options-panel" id="vro-faq-panel">
+      <summary>📚 VRO-Praxiswissen &amp; Quellen (FAQ)</summary>
+      <div class="card__subtitle" style="margin-top:10px;">Kurze Antworten auf die häufigsten Fragen beim Übergang
+        von diesem Vorschlag zu echten VRO-Plänen — mit den offiziellen Quellen zum Nachlesen. Die Links werden
+        vom Tool nie selbst aufgerufen (Offline-Versprechen), sie öffnen im Browser.</div>
+
+      <details style="margin:0 0 10px;">
+        <summary style="cursor:pointer; font:600 12.5px/18px var(--font-sans); color:var(--veeam-blue-royal); list-style:none;">❓ Warum bekommt die Foundation einen eigenen Recovery Plan?</summary>
+        <div class="graph-note" style="margin-top:6px; max-width:1100px;">AD/DNS/PKI &amp; Co. hängen mit fast allem zusammen —
+          in Service-Runbooks gemischt würden sie jede Gruppe zu einem Riesenplan verschmelzen. Als eigener, vorgelagerter
+          Orchestration Plan starten sie im DR-Fall zuerst; alle Service-Pläne setzen darauf auf.</div>
+      </details>
+
+      <details style="margin:0 0 10px;">
+        <summary style="cursor:pointer; font:600 12.5px/18px var(--font-sans); color:var(--veeam-blue-royal); list-style:none;">❓ Wie teste ich einen Service-Plan im DataLab, wenn er von AD/DNS abhängt?</summary>
+        <div class="graph-note" style="margin-top:6px; max-width:1100px;">Die Foundation-Systeme als LAB GROUP im DataLab
+          konfigurieren — Lab Groups bilden Abhängigkeiten ab, die nicht Teil des getesteten Plans sind, aber im Lab
+          laufen müssen (mit Verarbeitungs-Reihenfolge und Halt-bei-Fehler). Domain Controller brauchen in der Lab Group
+          den Step „Prepare VM as Domain Controller". Den Foundation-Plan selbst testet man über einen eigenen
+          Test-Schedule. SureBackup-Application-Groups aus VBR sind für VRO-DataLab-Tests nicht erforderlich.</div>
+      </details>
+
+      <details style="margin:0 0 10px;">
+        <summary style="cursor:pointer; font:600 12.5px/18px var(--font-sans); color:var(--veeam-blue-royal); list-style:none;">❓ Woher bekommt VRO seine Gruppen — und wie robust sind Tags?</summary>
+        <div class="graph-note" style="margin-top:6px; max-width:1100px;">Inventory Groups entstehen automatisch aus vier
+          Quellen: Backup-Jobs, Protection Groups (Agents), Datastores und VMware-Tags („Category – Tag"). Achtung:
+          Tag-Gruppen fallen komplett aus, wenn das Tag im vCenter gelöscht wird — für robuste Orchestrierung eher
+          Jobs/Datastores nutzen oder eigene Kategorien über die Veeam-ONE-Business-View pflegen (Anlage/Bearbeitung
+          nur im Veeam ONE Client, nicht in der VRO-UI).</div>
+      </details>
+
+      <details style="margin:0 0 10px;">
+        <summary style="cursor:pointer; font:600 12.5px/18px var(--font-sans); color:var(--veeam-blue-royal); list-style:none;">❓ Welche Versionen passen zusammen?</summary>
+        <div class="graph-note" style="margin-top:6px; max-width:1100px;">VRO 13.1 unterstützt offiziell VBR 12.3 oder neuer;
+          manche neuen Funktionen benötigen Remote-VBR 13.0.1+. Nach einem Upgrade müssen Virtual Labs einmal über den
+          Edit-Wizard in der VBR-Konsole aktualisiert werden. NAT zwischen Remote-VBR und Orchestrator wird nicht
+          unterstützt.</div>
+      </details>
+
+      <div style="font:700 12px/16px var(--font-sans); text-transform:uppercase; letter-spacing:.05em; color:var(--vm-slate); margin:14px 0 6px;">Quellen zum Nachlesen</div>
+      <div class="graph-note" style="max-width:1100px;">
+        <a href="https://helpcenter.veeam.com/docs/vro/userguide/overview.html" target="_blank" rel="noopener" style="color:var(--veeam-blue-royal);">Veeam Helpcenter: VRO User Guide</a> ·
+        <a href="https://community.veeam.com/onboarding-for-veeam-data-platform-163/onboarding-for-veeam-recovery-orchestrator-10037" target="_blank" rel="noopener" style="color:var(--veeam-blue-royal);">Community: VRO Onboarding (7 Steps)</a> ·
+        <a href="https://community.veeam.com/vro-heroes-den-120/vro-datalabs-recovery-verification-from-backups-7182" target="_blank" rel="noopener" style="color:var(--veeam-blue-royal);">Community: DataLabs &amp; Recovery Verification</a> ·
+        <a href="https://community.veeam.com/vro-heroes-den-120/tags-categories-business-view-and-plan-groupings-7109" target="_blank" rel="noopener" style="color:var(--veeam-blue-royal);">Community: Tags, Categories &amp; Business View</a>
+      </div>
+    </details>
+
+  </div>
+
+</div>
+
+<div class="statusbar">
+  <span><strong>DR Workload Classification</strong> <span id="statusbar-version" class="about-version"></span> <span class="statusbar__beta">BETA</span></span>
+  <span>Owner: Klaus Wittenberg · <a id="statusbar-repo" href="https://github.com/WittKlaus/dr-workload-classification" target="_blank" rel="noopener" style="color:inherit;" title="https://github.com/WittKlaus/dr-workload-classification">GitHub</a></span>
+  <span class="statusbar__disclaimer">Kein offizielles Veeam-Produkt · ohne Gewähr</span>
+  <button class="btn-about" id="btn-report-issue" style="margin-left:auto;" title="Problem melden / Feedback als GitHub-Issue (öffnet den Browser, nichts wird automatisch gesendet)">⚑ Feedback</button>
+  <button class="btn-about" data-about-open>ⓘ About</button>
+</div>
+
+<div class="about-overlay" id="welcome-overlay">
+  <div class="about-card" style="max-width:640px;">
+    <h2>Bevor es losgeht</h2>
+    <div class="about-version">DR Workload Classification · <span id="welcome-version"></span> · Beta</div>
+    <p style="margin-top:12px;">Dieses Werkzeug ist ein Community-Projekt eines Veeam Technical Account Managers, in aktiver Entwicklung — kein offizielles Veeam-Produkt, nicht von Veeam R&amp;D erstellt, nicht durch den Veeam Support abgedeckt. Ergebnisse sind eine strukturierte Diskussionsgrundlage und werden gemeinsam mit dem Kunden validiert — ohne Gewähr.</p>
+    <p>Alles läuft zu 100 % lokal in diesem Browser: kein Server, keine Telemetrie, keine KI zur
+      Laufzeit. Ihre Daten verlassen den Rechner nicht.</p>
+    <p>Wenn etwas klemmt oder eine Idee aufblitzt: <a href="#" id="welcome-feedback-link"
+      style="color:var(--veeam-blue-royal); font-weight:600;">GitHub Issues</a> — jedes
+      Feedback macht das Werkzeug besser. Details und vollständiger Disclaimer: ⓘ About (⚙-Menü oder Statusleiste).</p>
+    <details class="changelog-entry">
+      <summary>✨ Neu in dieser Version</summary>
+      <ul id="welcome-changelog"></ul>
+    </details>
+    <label class="toggle-inline" style="display:block; margin:12px 0 4px;">
+      <input type="checkbox" id="welcome-remember">
+      Entscheidung merken — bis zur nächsten Version nicht mehr anzeigen
+    </label>
+    <button class="btn" id="btn-welcome-ack" style="margin-top:8px;">✓ Verstanden — los geht's</button>
+  </div>
+</div>
+
+<div class="about-overlay" id="prequal-overlay">
+  <div class="about-card" style="max-width:900px;">
+    <button class="btn-ghost about-close" id="btn-prequal-close">✕ Abbrechen</button>
+    <h2>🪄 Automatisch vorklassifizieren</h2>
+    <div class="about-version" id="prequal-step-indicator"></div>
+
+    <div class="prequal-step" id="prequal-step-1">
+      <h3>Wichtig — bitte lesen</h3>
+      <p>Dieser Assistent erzeugt Bewertungs-VORSCHLÄGE auf Basis generischer Namens- und
+        Inventarmuster (destillierte Felderfahrung, keine Telemetrie). Er hat keine Kenntnis Ihrer
+        Geschäftsprozesse und ersetzt keine Business-Impact-Analyse — Rahmenwerke wie ISO 22317,
+        BSI 200-4, DORA und NIS2 legen die Verantwortung für die Kritikalitätsbewertung ausdrücklich beim
+        Unternehmen selbst. Alle Vorschläge müssen gemeinsam mit dem Kunden validiert werden.</p>
+      <p>Weder Veeam noch der Owner dieses Werkzeugs übernehmen Verantwortung oder Haftung für
+        Fehleinschätzungen aus diesen Vorschlägen. Übernommene Vorschläge bleiben bis zur Validierung
+        sichtbar als "auto" markiert — in der Tabelle, im Export und im Report.</p>
+      <p>Es wird nichts automatisch gesetzt: Vorschläge werden nur nach Ihrer Bestätigung und nur in
+        leere Bewertungsfelder übernommen. Der Regelkatalog ist unter "Optionen: Vorqualifizierungs-Katalog"
+        einsehbar und anpassbar.</p>
+      <label class="toggle-inline" style="display:block; margin:14px 0;">
+        <input type="checkbox" id="prequal-consent">
+        Ich habe verstanden: Das sind unverbindliche Vorschläge, die Validierung mit dem Kunden ist zwingend.
+      </label>
+      <button class="btn" id="btn-prequal-start" disabled>Erkennung starten →</button>
+    </div>
+
+    <div class="prequal-step" id="prequal-step-2">
+      <h3>Erkennung</h3>
+      <div id="prequal-summary" class="graph-note" style="background:var(--vm-grey-100); border-radius:var(--radius-md); padding:9px 13px;"></div>
+      <div class="graph-toolbar" style="margin-top:12px;">
+        <button class="btn" id="btn-prequal-to-groups">Gruppen prüfen →</button>
+      </div>
+    </div>
+
+    <div class="prequal-step" id="prequal-step-3">
+      <h3>Gruppen prüfen &amp; übernehmen</h3>
+      <p class="graph-note">Pro Gruppe: Vorschlagswerte prüfen, bei Bedarf anpassen, dann übernehmen oder
+        überspringen. Gruppen mit niedriger Konfidenz stehen bewusst auf "Überspringen". Werte werden nur
+        in leere Bewertungsfelder geschrieben; bereits bewertete Workloads sind ausgenommen.</p>
+      <div id="prequal-groups-box"></div>
+      <div class="graph-toolbar" style="margin-top:12px;">
+        <button class="btn" id="btn-prequal-to-flags">Weiter zu Foundational &amp; Out of Scope →</button>
+      </div>
+    </div>
+
+    <div class="prequal-step" id="prequal-step-4">
+      <h3>Foundational- &amp; Out-of-Scope-Prüflisten</h3>
+      <p class="graph-note">Die folgenreichsten Vorschläge — bitte einzeln prüfen. Foundational = Tier 0
+        (AD/DNS/PKI &amp; Co., immer erster Runbook-Block). Out of Scope = bewusst ohne Backup (bleibt
+        sichtbar, Abhängigkeitsrisiken werden weiter geprüft).</p>
+      <div id="prequal-flags-box"></div>
+      <div class="graph-toolbar" style="margin-top:12px;">
+        <button class="btn" id="btn-prequal-to-summary">Weiter zur Zusammenfassung →</button>
+      </div>
+    </div>
+
+    <div class="prequal-step" id="prequal-step-5">
+      <h3>Zusammenfassung</h3>
+      <div id="prequal-result" class="graph-note" style="background:var(--vm-grey-100); border-radius:var(--radius-md); padding:9px 13px;"></div>
+      <p class="graph-note" style="margin-top:10px;">Übernommene Vorschläge tragen jetzt das blaue
+        "auto"-Badge in der Schutzklassen-Spalte — es verschwindet erst mit dem Haken "Vom Kunden
+        validiert". Die Quote unbestätigter Auto-Vorschläge wird in der Werkzeugleiste angezeigt.</p>
+      <button class="btn" id="btn-prequal-finish">✓ Fertig — zurück zur Tabelle</button>
+    </div>
+  </div>
+</div>
+
+<div class="about-overlay" id="about-overlay">
+  <div class="about-card">
+    <button class="btn-ghost about-close" id="btn-about-close">✕ Schließen</button>
+    <h2>DR Workload Classification</h2>
+    <div class="about-version"><span id="about-version"></span> · Beta</div>
+
+    <h3>Zweck</h3>
+    <p>Hilfestellung zur Klassifizierung von Workloads in DR-Schutzklassen (Tier 0–4) mit Ziel-RPO/RTO,
+      zur Erfassung der Abhängigkeiten, die einen Service bilden, und als Grundlage für
+      Veeam-Recovery-Orchestrator-Runbooks.</p>
+
+    <h3>Owner</h3>
+    <p>Klaus Wittenberg · Veeam Technical Account Manager · <a href="https://github.com/WittKlaus/dr-workload-classification" target="_blank" rel="noopener" style="color:var(--veeam-blue-royal);">github.com/WittKlaus/dr-workload-classification</a></p>
+
+    <h3>Disclaimer</h3>
+    <p>Dieses Werkzeug ist ein Community-Projekt, erstellt von einem Veeam Technical Account Manager und im Sinne von Open Source geteilt (MIT-Lizenz); es befindet sich in Entwicklung und Erprobung. Es ist kein offizielles Veeam-Produkt, nicht von Veeam R&amp;D erstellt, nicht durch Veeam QA geprüft, nicht Teil des Veeam-Produktportfolios und wird nicht durch den Veeam Support abgedeckt. Ergebnisse dienen als strukturierte Diskussionsgrundlage und sind vor Verwendung gemeinsam zu validieren — ohne Gewähr.</p>
+
+    <h3>Datenschutz &amp; Laufzeit</h3>
+    <p>Das Tool läuft vollständig lokal im Browser: kein Server, keine Telemetrie, kein Datenabruf aus dem
+      Internet, keine KI zur Laufzeit. Kunden- und Bewertungsdaten verlassen den Rechner nie — gespeichert
+      wird ausschließlich lokal im Browser (Autosave) bzw. in Dateien, die aktiv selbst gespeichert werden.</p>
+    <p>Hinweis zum Autosave: Der Arbeitsstand liegt unverschlüsselt im lokalen Speicher dieses Browserprofils
+      (localStorage) und bleibt dort auch nach dem Schließen erhalten, bis er über „Neu starten" gelöscht oder
+      von einem neuen Stand überschrieben wird. Auf gemeinsam genutzten oder Kunden-Rechnern daher vor dem
+      Verlassen den Fortschritt als JSON speichern und „Neu starten" ausführen. Fortschrittsdateien (JSON) und
+      Excel-Importe werden beim Laden auf gültige Feldtypen geprüft — Dateien aus unbekannter Quelle trotzdem
+      nur mit Bedacht laden.</p>
+
+    <h3>Grenzen &amp; Performance</h3>
+    <p>Getestet mit synthetischen Inventaren bis 5.000 Workloads (Import, Bewertung, Register,
+      Excel-/JSON-Export). Die Tabellen sind paginiert und bleiben auch darüber hinaus flüssig —
+      rechnerisch trägt dieser Build etwa 10.000 Workloads. Das Abhängigkeitsnetz wird bei sehr
+      großen Umgebungen begrenzt dargestellt. Empfehlung ab dieser Größenordnung: die Erhebung in
+      Wellen aufteilen (z. B. je Standort oder Cluster).</p>
+
+    <h3>Transparenz</h3>
+    <p>Entwickelt mit Unterstützung von Anthropic Claude; gepflegt und verantwortet durch den Owner.
+      Das Tool selbst enthält keine KI-Funktionalität.</p>
+
+    <h3>Eingebettete Open-Source-Bibliotheken</h3>
+    <p id="about-libs">SheetJS Community Edition (Apache-2.0) · Chart.js (MIT) · D3.js (ISC) · fflate (MIT)</p>
+    <p>Die Bibliotheksversionen werden vor jedem Release gegen veröffentlichte Sicherheitshinweise (CVEs) geprüft.</p>
+
+    <h3>Neu in dieser Version &amp; Verlauf</h3>
+    <div id="about-changelog"></div>
+  </div>
+</div>
+
+<script>
+/* @include src/app/04-core.js */</script>
+<script>
+/* @include src/app/05-view-overview.js */</script>
+<script>
+/* @include src/app/06-view-findings.js */</script>
+<script>
+/* @include src/app/07-view-network.js */</script>
+<script>
+/* @include src/app/08-tabs.js */</script>
+<script>
+/* @include src/app/09-options-panel.js */</script>
+<script>
+/* @include src/app/10-import.js */</script>
+<script>
+/* @include src/app/11-assessment-table.js */</script>
+<script>
+/* @include src/app/12-persistence.js */</script>
+<script>
+/* @include src/app/13-export-model.js */</script>
+<script>
+/* @include src/app/14-validation.js */</script>
+<script>
+/* @include src/app/15-runbook.js */</script>
+<script>
+/*! fflate 0.8.2 | MIT License | https://github.com/101arrowz/fflate — embedded for the
+    formatted template export (ZIP/XML patch); like SheetJS/Chart.js/D3 fully offline. */
+/* @include vendor/fflate.min.js */
+</script>
+<script>
+/* @include src/app/17-excel-export.js */</script>
+<script>
+/* @include src/app/18-prequalification.js */</script>
+<script>
+/* @include src/app/19-settings-shell.js */</script>
+<script>
+/* @include src/app/20-i18n-about.js */</script>
+</body>
+</html>

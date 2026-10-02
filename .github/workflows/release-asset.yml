@@ -1,0 +1,31 @@
+# When a release is published, GitHub builds the tool from the tagged sources and attaches the single
+# HTML file plus its SHA-256 to the release. Nobody uploads a hand-made file.
+name: Release asset
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  attach:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Build and verify against the committed dist/
+        run: node tools/build.mjs --check
+      - name: Attach the single-file tool and its checksum to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          cp dist/DR_Workload_Classification.html .
+          sha256sum DR_Workload_Classification.html > DR_Workload_Classification.html.sha256
+          gh release upload "$TAG" DR_Workload_Classification.html DR_Workload_Classification.html.sha256 --clobber

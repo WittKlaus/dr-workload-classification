@@ -1,0 +1,13 @@
+{
+  "name": "dr-workload-classification",
+  "private": true,
+  "description": "Single-file, offline tool for DR concept workshops: workload classification, dependencies, VRO runbook groups",
+  "license": "MIT",
+  "scripts": {
+    "build": "node tools/build.mjs",
+    "check": "node tools/build.mjs --check"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

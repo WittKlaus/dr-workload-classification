@@ -5,8 +5,12 @@ All notable changes to this project are documented here.
 ---
 
 ## [Unreleased]
-- Backlog (next): bulk-edit "Depends on" for a selection, editable Excel re-import into tab ①,
-  recovery-plan type per runbook group
+- Repository: the source is now split into readable files — application code in `src/` (page shell,
+  styles, 16 JavaScript files in load order), the four libraries unmodified in `vendor/` — and assembled
+  by a dependency-free build script (`tools/build.mjs`). The single-file tool moved to `dist/`; a GitHub
+  Action verifies on every push that it is exactly the build output, and release assets are built by
+  GitHub. The tool itself is unchanged (byte-identical to v0.16.1-beta)
+- Backlog (next): editable Excel re-import into tab ①, recovery-plan type per runbook group
 
 ## [2026-09-29] — v0.16.1-beta
 Compact status bar for small screens; fix for the language of the "manual" badge.

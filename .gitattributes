@@ -3,11 +3,20 @@
 *.md   text eol=lf
 *.json text eol=lf
 *.js   text eol=lf
+*.mjs  text eol=lf
+*.css  text eol=lf
+*.yml  text eol=lf
+LICENSE    text eol=lf
 .gitignore text eol=lf
 .gitattributes text eol=lf
 
 # CSV examples carry deliberate encodings (UTF-8 with BOM, cp1252) and line endings - keep bytes as they are
 *.csv -text
+
+# Embedded third-party libraries and the generated single-file tool: never touch the bytes, and tell
+# GitHub that they are vendored / generated (excluded from language stats, diffs collapsed)
+vendor/** -text linguist-vendored
+dist/**   -text linguist-generated
 
 # Binary
 *.xlsx binary
