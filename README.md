@@ -11,7 +11,7 @@
 > not validated by Veeam QA and not covered by Veeam Support. Results are a structured basis for
 > discussion and are validated together with the customer — without warranty.
 
-![Dependency network in dark mode with a weakest-link finding](docs/screenshots/network-dark.png)
+![Dependency network in dark and light mode with a weakest-link finding](docs/screenshots/hero.png)
 
 ## Why
 
